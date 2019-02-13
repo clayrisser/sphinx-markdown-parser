@@ -1,10 +1,12 @@
-# recommonmark
+# sphinx-markdown-parser
 
-A `docutils`-compatibility bridge to [CommonMark][cm].
+A `docutils`-compatibility bridge to MarkdownParser and CommonMark.
 
-This allows you to write CommonMark inside of Docutils & Sphinx projects.
+This allows you to write markdown inside of docutils & sphinx projects.
 
-Documentation is available on Read the Docs: <http://recommonmark.readthedocs.org>
+This was built due to limitations of the existing markdown parsers
+supported by sphinx, specifically recommonmark. Features such as support
+for tables have been added to this extension.
 
 Contents
 --------
@@ -14,31 +16,30 @@ Contents
 
 ## Getting Started
 
-To use `recommonmark` inside of Sphinx only takes 2 steps.
+To use `sphinx-markdown-parser` inside of Sphinx only takes 2 steps.
 First you install it:
 
 ```
-pip install recommonmark
+pip install sphinx-markdown-parser
 ```
 
 Then add this to your Sphinx conf.py:
 
 ```
-# for CommonMarkParser
-from recommonmark.parser import CommonMarkParser
-
-source_parsers = {
-    '.md': CommonMarkParser,
-}
-
-source_suffix = ['.rst', '.md']
-
-
 # for MarkdownParser
 from recommonmark.parser import MarkdownParser
 
 source_parsers = {
     '.md': MarkdownParser,
+}
+
+source_suffix = ['.rst', '.md']
+
+# for CommonMarkParser
+from recommonmark.parser import CommonMarkParser
+
+source_parsers = {
+    '.md': CommonMarkParser,
 }
 
 source_suffix = ['.rst', '.md']

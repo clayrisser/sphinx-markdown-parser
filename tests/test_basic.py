@@ -9,7 +9,7 @@ from docutils.readers import Reader
 from docutils.core import publish_parts
 
 from commonmark import Parser
-from recommonmark.parser import CommonMarkParser
+from sphinx_markdown_parser.parser import CommonMarkParser
 
 
 class TestParsing(unittest.TestCase):

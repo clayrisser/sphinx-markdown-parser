@@ -1,8 +1,8 @@
 
 # -*- coding: utf-8 -*-
 
-from recommonmark.parser import CommonMarkParser
-from recommonmark.transform import AutoStructify
+from sphinx_markdown_parser.parser import CommonMarkParser
+from sphinx_markdown_parser.transform import AutoStructify
 
 templates_path = ['_templates']
 source_suffix = '.markdown'

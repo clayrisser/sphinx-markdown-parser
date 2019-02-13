@@ -3,21 +3,20 @@
 
 """
 File: setup.py
-Author: Steve Genoud and Luca Barbato
-Date: 2014-10-17
+Author: Jam Risser
+Date: 2019-02-13
 """
 
 from setuptools import setup
-import recommonmark
-
+import sphinx_markdown_parser
 
 setup(
-    name='recommonmark',
-    version=recommonmark.__version__,
-    description=('A docutils-compatibility bridge to CommonMark, '
-                 'enabling you to write CommonMark '
-                 'inside of Docutils & Sphinx projects.'),
-    url='https://github.com/rtfd/recommonmark',
+    name='sphinx_markdown_parser',
+    version=sphinx_markdown_parser.__version__,
+    description=('A docutils-compatibility bridge to markdown, '
+                 'enabling you to write markdown with support for tables '
+                 'inside of docutils & sphinx projects.'),
+    url='https://github.com/codejamninja/sphinx-markdown-parser',
     license='MIT',
     classifiers=[
         'License :: OSI Approved :: MIT License',
@@ -31,12 +30,12 @@ setup(
         'sphinx>=1.3.1',
     ],
     entry_points={'console_scripts': [
-        'cm2html = recommonmark.scripts:cm2html',
-        'cm2latex = recommonmark.scripts:cm2latex',
-        'cm2man = recommonmark.scripts:cm2man',
-        'cm2pseudoxml = recommonmark.scripts:cm2pseudoxml',
-        'cm2xetex = recommonmark.scripts:cm2xetex',
-        'cm2xml = recommonmark.scripts:cm2xml',
+        'cm2html = sphinx_markdown_parser.scripts:cm2html',
+        'cm2latex = sphinx_markdown_parser.scripts:cm2latex',
+        'cm2man = sphinx_markdown_parser.scripts:cm2man',
+        'cm2pseudoxml = sphinx_markdown_parser.scripts:cm2pseudoxml',
+        'cm2xetex = sphinx_markdown_parser.scripts:cm2xetex',
+        'cm2xml = sphinx_markdown_parser.scripts:cm2xml',
     ]},
-    packages=['recommonmark']
+    packages=['sphinx_markdown_parser']
 )

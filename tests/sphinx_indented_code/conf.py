@@ -1,7 +1,7 @@
 
 # -*- coding: utf-8 -*-
 
-from recommonmark.parser import CommonMarkParser
+from sphinx_markdown_parser.parser import CommonMarkParser
 
 templates_path = ['_templates']
 source_suffix = '.md'
