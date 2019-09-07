@@ -6,9 +6,7 @@ from docutils.parsers.rst.states import Struct, RSTState, Inliner
 from docutils.parsers.rst.roles import role
 from docutils.parsers.rst.directives import directive
 
-
 class DummyStateMachine(StateMachineWS):
-
     """A dummy state machine that mimicks the property of statemachine.
 
     This state machine cannot be used for parsing, it is only used to generate
@@ -16,10 +14,8 @@ class DummyStateMachine(StateMachineWS):
     - Call `reset` to reset the state
     - Then call `run_directive` or `run_role` to generate the node.
     """
-
     def __init__(self):
-        self.memo = Struct(title_styles=[],
-                           inliner=None)
+        self.memo = Struct(title_styles=[], inliner=None)
         self.state = RSTState(self)
         self.input_offset = 0
 
@@ -38,8 +34,7 @@ class DummyStateMachine(StateMachineWS):
         level: int
             Current section level.
         """
-        self.language = languages.get_language(
-            document.settings.language_code)
+        self.language = languages.get_language(document.settings.language_code)
         # setup memo
         self.memo.document = document
         self.memo.reporter = document.reporter
@@ -61,10 +56,7 @@ class DummyStateMachine(StateMachineWS):
         self.state.runtime_init()
         self.input_lines = document['source']
 
-    def run_directive(self, name,
-                      arguments=None,
-                      options=None,
-                      content=None):
+    def run_directive(self, name, arguments=None, options=None, content=None):
         """Generate directive node given arguments.
 
         Parameters
@@ -90,20 +82,20 @@ class DummyStateMachine(StateMachineWS):
         if arguments is None:
             arguments = []
         direc, _ = directive(name, self.language, self.document)
-        direc = direc(name=name,
-                      arguments=arguments,
-                      options=options,
-                      content=content,
-                      lineno=self.node.line,
-                      content_offset=0,
-                      block_text='Dummy BlockText',
-                      state=self.state,
-                      state_machine=self)
+        direc = direc(
+            name=name,
+            arguments=arguments,
+            options=options,
+            content=content,
+            lineno=self.node.line,
+            content_offset=0,
+            block_text='Dummy BlockText',
+            state=self.state,
+            state_machine=self
+        )
         return direc.run()
 
-    def run_role(self, name,
-                 options=None,
-                 content=None):
+    def run_role(self, name, options=None, content=None):
         """Generate a role node.
 
         options : dict
@@ -120,17 +112,16 @@ class DummyStateMachine(StateMachineWS):
             options = {}
         if content is None:
             content = []
-        role_fn, _ = role(name,
-                          self.language,
-                          self.node.line,
-                          self.reporter)
-        vec, _ = role_fn(name,
-                         rawtext=str(content),
-                         text=str(content),
-                         lineno=self.node.line,
-                         inliner=self.memo.inliner,
-                         options=options,
-                         content=content)
+        role_fn, _ = role(name, self.language, self.node.line, self.reporter)
+        vec, _ = role_fn(
+            name,
+            rawtext=str(content),
+            text=str(content),
+            lineno=self.node.line,
+            inliner=self.memo.inliner,
+            options=options,
+            content=content
+        )
         assert len(vec) == 1, 'only support one list in role'
         return vec[0]
 

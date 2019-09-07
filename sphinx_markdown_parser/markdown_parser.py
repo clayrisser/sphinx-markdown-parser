@@ -10,7 +10,6 @@ import yaml
 __all__ = ['MarkdownParser']
 
 class MarkdownParser(parsers.Parser):
-
     """Docutils parser for Markdown"""
 
     depth = 0
@@ -28,17 +27,20 @@ class MarkdownParser(parsers.Parser):
         self.setup_parse(inputstring, document)
         frontmatter = self.get_frontmatter(inputstring)
         md = self.get_md(inputstring)
-        html = markdown(md + '\n', extensions=[
-            'extra',
-            'tables',
-            'sane_lists',
-            'toc',
-        ])
+        html = markdown(
+            md + '\n', extensions=[
+                'extra',
+                'tables',
+                'sane_lists',
+                'toc',
+            ]
+        )
         self.convert_html(html)
         self.finish_parse()
 
     def convert_html(self, html):
         html = html.replace('\n', '')
+
         class MyHTMLParser(HTMLParser):
             def handle_starttag(_, tag, attrs):
                 attrs = self.attrs_to_dict(attrs)
@@ -48,6 +50,7 @@ class MarkdownParser(parsers.Parser):
                     fn(attrs)
                 else:
                     self.visit_html(tag, attrs)
+
             def handle_endtag(_, tag):
                 fn_name = 'depart_' + tag
                 if hasattr(self, fn_name):
@@ -55,9 +58,11 @@ class MarkdownParser(parsers.Parser):
                     fn()
                 else:
                     self.depart_html(tag)
+
             def handle_data(_, data):
                 self.visit_text(data)
                 self.depart_text()
+
         self.visit_document()
         parser = MyHTMLParser()
         parser.feed(html)
@@ -66,10 +71,7 @@ class MarkdownParser(parsers.Parser):
     def get_frontmatter(self, string):
         frontmatter = {}
         frontmatter_string = ''
-        frontmatter_regex = re.findall(
-            r'^\s*---+((\s|\S)+?)---+',
-            string
-        )
+        frontmatter_regex = re.findall(r'^\s*---+((\s|\S)+?)---+', string)
         if len(frontmatter_regex) and len(frontmatter_regex[0]):
             frontmatter_string = frontmatter_regex[0][0]
         if len(frontmatter_string):
@@ -77,11 +79,7 @@ class MarkdownParser(parsers.Parser):
         return frontmatter
 
     def get_md(self, string):
-        return re.sub(
-            r'^\s*---+(\s|\S)+?---+\n((\s|\S)*)',
-            r'\2',
-            string
-        )
+        return re.sub(r'^\s*---+(\s|\S)+?---+\n((\s|\S)*)', r'\2', string)
 
     def attrs_to_dict(self, attrs):
         attrs_dict = {}
@@ -92,9 +90,9 @@ class MarkdownParser(parsers.Parser):
 
     def convert_ast(self, ast):
         for (node, entering) in ast.walker():
-            fn_prefix = "visit" if entering else "depart"
-            fn_name = "{0}_{1}".format(fn_prefix, node.t.lower())
-            fn_default = "default_{0}".format(fn_prefix)
+            fn_prefix = 'visit' if entering else 'depart'
+            fn_name = '{0}_{1}'.format(fn_prefix, node.t.lower())
+            fn_default = 'default_{0}'.format(fn_prefix)
             fn = getattr(self, fn_name, None)
             if fn is None:
                 fn = getattr(self, fn_default)
@@ -504,7 +502,9 @@ class MarkdownParser(parsers.Parser):
         self.depth = self.depth + 1
 
     def depart_html(self, tag):
-        text = nodes.Text(self.current_node.children[0].astext() + '</' + tag + '>')
+        text = nodes.Text(
+            self.current_node.children[0].astext() + '</' + tag + '>'
+        )
         self.current_node.children[0] = text
         if self.depth == self.html_mode:
             self.current_node = self.current_node.parent

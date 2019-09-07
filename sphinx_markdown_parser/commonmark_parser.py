@@ -17,9 +17,7 @@ else:
 
 __all__ = ['CommonMarkParser']
 
-
 class CommonMarkParser(parsers.Parser):
-
     """Docutils parser for CommonMark"""
 
     supported = ('md', 'markdown')
@@ -41,9 +39,9 @@ class CommonMarkParser(parsers.Parser):
 
     def convert_ast(self, ast):
         for (node, entering) in ast.walker():
-            fn_prefix = "visit" if entering else "depart"
-            fn_name = "{0}_{1}".format(fn_prefix, node.t.lower())
-            fn_default = "default_{0}".format(fn_prefix)
+            fn_prefix = 'visit' if entering else 'depart'
+            fn_name = '{0}_{1}'.format(fn_prefix, node.t.lower())
+            fn_default = 'default_{0}'.format(fn_prefix)
             fn = getattr(self, fn_name, None)
             if fn is None:
                 fn = getattr(self, fn_default)
@@ -63,7 +61,7 @@ class CommonMarkParser(parsers.Parser):
         if mdnode.is_container():
             fn_name = 'visit_{0}'.format(mdnode.t)
             if not hasattr(self, fn_name):
-                warn("Container node skipped: type={0}".format(mdnode.t))
+                warn('Container node skipped: type={0}'.format(mdnode.t))
             else:
                 self.current_node = self.current_node.parent
 
@@ -187,7 +185,7 @@ class CommonMarkParser(parsers.Parser):
 
     def visit_list(self, mdnode):
         list_node = None
-        if (mdnode.list_data['type'] == "bullet"):
+        if (mdnode.list_data['type'] == 'bullet'):
             list_node_cls = nodes.bullet_list
         else:
             list_node_cls = nodes.enumerated_list
@@ -220,8 +218,7 @@ class CommonMarkParser(parsers.Parser):
         self.current_node = q
 
     def visit_html(self, mdnode):
-        raw_node = nodes.raw(mdnode.literal,
-                             mdnode.literal, format='html')
+        raw_node = nodes.raw(mdnode.literal, mdnode.literal, format='html')
         if mdnode.sourcepos is not None:
             raw_node.line = mdnode.sourcepos[0][0]
         self.current_node.append(raw_node)
