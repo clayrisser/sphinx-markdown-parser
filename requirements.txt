@@ -2,8 +2,9 @@
 Markdown>=3.1.1
 commonmark>=0.9.0
 markdown-checklist>=0.4.1
-markdown-strikethrough>=0.1.0
+markdown-strikethrough>=0.1.1
 pydash>=4.7.5
+pyyaml>=5.1.2
 sphinx>=2.2.0
 unify>=0.5
 yapf>=0.28.0

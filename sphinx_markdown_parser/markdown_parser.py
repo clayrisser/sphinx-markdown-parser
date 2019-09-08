@@ -17,7 +17,6 @@ class MarkdownParser(parsers.Parser):
     """Docutils parser for Markdown"""
 
     depth = Depth()
-    html_mode = False
     level = 0
     supported = ('md', 'markdown')
     translate_section_name = None
@@ -135,14 +134,14 @@ class MarkdownParser(parsers.Parser):
 
     def visit_p(self, attrs):
         self.descend('p')
-        if self.depth.get('html') > 0 or len(_.keys(attrs)):
+        if self.depth.get('html') > 0:
             self.visit_html('p', attrs)
         else:
             paragraph = nodes.paragraph()
             self.append_node(paragraph)
 
     def depart_p(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('p')
         else:
             self.exit_node()
@@ -153,15 +152,14 @@ class MarkdownParser(parsers.Parser):
         if self.depth.get('html') > 0:
             self.visit_html('del', attrs)
         else:
-            self.depart_p()
-            self.visit_html('del', attrs)
+            paragraph = nodes.paragraph()
+            self.append_node(paragraph)
 
     def depart_del(self):
         if self.depth.get('html') > 1:
             self.depart_html('del')
         else:
-            self.depart_html('del')
-            self.visit_p({})
+            self.exit_node()
         self.ascend('del')
 
     def visit_text(self, data):
@@ -177,7 +175,7 @@ class MarkdownParser(parsers.Parser):
             self.append_node(text)
 
     def depart_text(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             pass
         elif hasattr(self, 'title_node') and self.title_node:
             self.title_node = self.title_node.parent
@@ -193,7 +191,7 @@ class MarkdownParser(parsers.Parser):
             self.visit_section(1, attrs)
 
     def depart_h1(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('h1')
         else:
             self.title_node = None
@@ -207,7 +205,7 @@ class MarkdownParser(parsers.Parser):
             self.visit_section(2, attrs)
 
     def depart_h2(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('h2')
         else:
             self.title_node = None
@@ -221,7 +219,7 @@ class MarkdownParser(parsers.Parser):
             self.visit_section(3, attrs)
 
     def depart_h3(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('h3')
         else:
             self.title_node = None
@@ -235,7 +233,7 @@ class MarkdownParser(parsers.Parser):
             self.visit_section(4, attrs)
 
     def depart_h4(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('h4')
         else:
             self.title_node = None
@@ -249,7 +247,7 @@ class MarkdownParser(parsers.Parser):
             self.visit_section(5, attrs)
 
     def depart_h5(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('h5')
         else:
             self.title_node = None
@@ -263,7 +261,7 @@ class MarkdownParser(parsers.Parser):
             self.visit_section(6, attrs)
 
     def depart_h6(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('h6')
         else:
             self.title_node = None
@@ -283,7 +281,7 @@ class MarkdownParser(parsers.Parser):
                 self.append_node(reference)
 
     def depart_a(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('a')
         elif self.title_node:
             self.title_node = self.title_node.parent
@@ -302,7 +300,7 @@ class MarkdownParser(parsers.Parser):
             self.visit_text(attrs['alt'] if 'alt' in attrs else '')
 
     def depart_img(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('img')
         else:
             self.depart_text()
@@ -311,14 +309,14 @@ class MarkdownParser(parsers.Parser):
 
     def visit_ul(self, attrs):
         self.descend('ul')
-        if self.depth.get('html') > 0 or len(_.keys(attrs)):
+        if self.depth.get('html') > 0 or attrs['class'] == 'checklist':
             self.visit_html('ul', attrs)
         else:
             bullet_list = nodes.bullet_list()
             self.append_node(bullet_list)
 
     def depart_ul(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('ul')
         else:
             self.exit_node()
@@ -326,14 +324,14 @@ class MarkdownParser(parsers.Parser):
 
     def visit_ol(self, attrs):
         self.descend('ol')
-        if self.depth.get('html') > 0 or len(_.keys(attrs)):
+        if self.depth.get('html') > 0:
             self.visit_html('ol', attrs)
         else:
             enumerated_list = nodes.enumerated_list()
             self.append_node(enumerated_list)
 
     def depart_ol(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('ol')
         else:
             self.exit_node()
@@ -341,7 +339,7 @@ class MarkdownParser(parsers.Parser):
 
     def visit_li(self, attrs):
         self.descend('li')
-        if self.depth.get('html') > 0 or len(_.keys(attrs)):
+        if self.depth.get('html') > 0:
             self.visit_html('li', attrs)
         else:
             list_item = nodes.list_item()
@@ -349,7 +347,7 @@ class MarkdownParser(parsers.Parser):
             self.visit_p([])
 
     def depart_li(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('li')
         else:
             self.depart_p()
@@ -358,29 +356,31 @@ class MarkdownParser(parsers.Parser):
 
     def visit_table(self, attrs):
         self.descend('table')
-        if self.depth.get('html') > 0 or len(_.keys(attrs)):
-            self.visit_html('table', attrs)
-        else:
-            table = nodes.table()
-            self.append_node(table)
+        self.visit_html('table', attrs)
+        # if self.depth.get('html') > 0:
+        #     self.visit_html('table', attrs)
+        # else:
+        #     table = nodes.table()
+        #     self.append_node(table)
 
     def depart_table(self):
-        if self.depth.get('html') > 0:
-            self.depart_html('table')
-        else:
-            self.exit_node()
+        self.depart_html('table')
+        # if self.depth.get('html') > 1:
+        #     self.depart_html('table')
+        # else:
+        #     self.exit_node()
         self.ascend('table')
 
     def visit_thead(self, attrs):
         self.descend('thead')
-        if self.depth.get('html') > 0 or len(_.keys(attrs)):
+        if self.depth.get('html') > 0:
             self.visit_html('thead', attrs)
         else:
             thead = nodes.thead()
             self.append_node(thead)
 
     def depart_thead(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('thead')
         else:
             self.exit_node()
@@ -388,29 +388,29 @@ class MarkdownParser(parsers.Parser):
 
     def visit_tbody(self, attrs):
         self.descend('tbody')
-        if self.depth.get('html') > 0 or len(_.keys(attrs)):
+        if self.depth.get('html') > 0:
             self.visit_html('tbody', attrs)
         else:
             tbody = nodes.tbody()
             self.append_node(tbody)
 
     def depart_tbody(self):
-        if self.depth.get('html') > 0:
-            self.html_mode('tbody')
+        if self.depth.get('html') > 1:
+            self.depart_html('tbody')
         else:
             self.exit_node()
         self.ascend('tbody')
 
     def visit_tr(self, attrs):
         self.descend('tr')
-        if self.depth.get('html') > 0 or len(_.keys(attrs)):
+        if self.depth.get('html') > 0:
             self.visit_html('tr', attrs)
         else:
             row = nodes.row()
             self.append_node(row)
 
     def depart_tr(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('tr')
         else:
             self.exit_node()
@@ -418,14 +418,14 @@ class MarkdownParser(parsers.Parser):
 
     def visit_th(self, attrs):
         self.descend('th')
-        if self.depth.get('html') > 0 or len(_.keys(attrs)):
+        if self.depth.get('html') > 0:
             self.visit_html('th', attrs)
         else:
             entry = nodes.entry()
             self.append_node(entry)
 
     def depart_th(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('th')
         else:
             self.exit_node()
@@ -433,14 +433,14 @@ class MarkdownParser(parsers.Parser):
 
     def visit_td(self, attrs):
         self.descend('td')
-        if self.depth.get('html') > 0 or len(_.keys(attrs)):
+        if self.depth.get('html') > 0:
             self.visit_html('td', attrs)
         else:
             entry = nodes.entry()
             self.append_node(entry)
 
     def depart_td(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('td')
         else:
             self.exit_node()
@@ -448,11 +448,11 @@ class MarkdownParser(parsers.Parser):
 
     def visit_pre(self, attrs):
         self.descend('pre')
-        if self.depth.get('html') > 0 or len(_.keys(attrs)):
+        if self.depth.get('html') > 0:
             self.visit_html('pre', attrs)
 
     def depart_pre(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('pre')
         self.ascend('pre')
 
@@ -471,7 +471,7 @@ class MarkdownParser(parsers.Parser):
             self.append_node(literal_block)
 
     def depart_code(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('code')
         else:
             self.exit_node()
@@ -479,14 +479,14 @@ class MarkdownParser(parsers.Parser):
 
     def visit_blockquote(self, attrs):
         self.descend('blockquote')
-        if self.depth.get('html') > 0 or len(_.keys(attrs)):
+        if self.depth.get('html') > 0:
             self.visit_html('blockquote', attrs)
         else:
             block_quote = nodes.block_quote()
             self.append_node(block_quote)
 
     def depart_blockquote(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('blockquote')
         else:
             self.exit_node()
@@ -494,14 +494,14 @@ class MarkdownParser(parsers.Parser):
 
     def visit_hr(self, attrs):
         self.descend('hr')
-        if self.depth.get('html') > 0 or len(_.keys(attrs)):
+        if self.depth.get('html') > 0:
             self.visit_html('hr', attrs)
         else:
             transition = nodes.transition()
             self.append_node(transition)
 
     def depart_hr(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('hr')
         else:
             self.exit_node()
@@ -509,14 +509,14 @@ class MarkdownParser(parsers.Parser):
 
     def visit_br(self, attrs):
         self.descend('br')
-        if self.depth.get('html') > 0 or len(_.keys(attrs)):
+        if self.depth.get('html') > 0:
             self.visit_html('br', attrs)
         else:
             text = nodes.Text('\n')
             self.append_node(text)
 
     def depart_br(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('br')
         else:
             self.exit_node()
@@ -524,7 +524,7 @@ class MarkdownParser(parsers.Parser):
 
     def visit_em(self, attrs):
         self.descend('em')
-        if self.depth.get('html') > 0 or len(_.keys(attrs)):
+        if self.depth.get('html') > 0:
             self.visit_html('em', attrs)
         else:
             emphasis = nodes.emphasis()
@@ -535,7 +535,7 @@ class MarkdownParser(parsers.Parser):
                 self.append_node(emphasis)
 
     def depart_em(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('em')
         elif self.title_node:
             self.title_node = self.title_node.parent
@@ -545,7 +545,7 @@ class MarkdownParser(parsers.Parser):
 
     def visit_strong(self, attrs):
         self.descend('strong')
-        if self.depth.get('html') > 0 or len(_.keys(attrs)):
+        if self.depth.get('html') > 0:
             self.visit_html('strong', attrs)
         else:
             strong = nodes.strong()
@@ -556,7 +556,7 @@ class MarkdownParser(parsers.Parser):
                 self.append_node(strong)
 
     def depart_strong(self):
-        if self.depth.get('html') > 0:
+        if self.depth.get('html') > 1:
             self.depart_html('strong')
         elif self.title_node:
             self.title_node = self.title_node.parent
