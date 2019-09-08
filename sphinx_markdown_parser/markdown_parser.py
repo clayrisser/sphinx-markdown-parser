@@ -1,9 +1,12 @@
 """Docutils Markdown parser"""
 
+# from mdx_unimoji import UnimojiExtension
 from .depth import Depth
 from docutils import parsers, nodes
 from html.parser import HTMLParser
 from markdown import markdown
+from markdown_checklist.extension import ChecklistExtension
+from markdown_strikethrough import StrikethroughExtension
 from pydash import _
 import re
 import yaml
@@ -29,11 +32,17 @@ class MarkdownParser(parsers.Parser):
         frontmatter = self.get_frontmatter(inputstring)
         md = self.get_md(inputstring)
         html = markdown(
-            md + '\n', extensions=[
+            md + '\n',
+            extensions=[
+                # UnimojiExtension(),
                 'extra',
-                'tables',
+                'nl2br',
                 'sane_lists',
+                'smarty',
                 'toc',
+                'wikilinks',
+                ChecklistExtension(),
+                StrikethroughExtension(),
             ]
         )
         self.convert_html(html)
@@ -109,7 +118,7 @@ class MarkdownParser(parsers.Parser):
         section['ids'] = id_attr
         section['names'] = id_attr
         title = nodes.title()
-        self.title_node = title
+        setattr(self, 'title_node', title)
         section.append(title)
         self.append_node(section)
 
@@ -134,10 +143,26 @@ class MarkdownParser(parsers.Parser):
 
     def depart_p(self):
         if self.depth.get('html') > 0:
-            self.depart_html('p', attrs)
+            self.depart_html('p')
         else:
             self.exit_node()
         self.ascend('p')
+
+    def visit_del(self, attrs):
+        self.descend('del')
+        if self.depth.get('html') > 0:
+            self.visit_html('del', attrs)
+        else:
+            self.depart_p()
+            self.visit_html('del', attrs)
+
+    def depart_del(self):
+        if self.depth.get('html') > 1:
+            self.depart_html('del')
+        else:
+            self.depart_html('del')
+            self.visit_p({})
+        self.ascend('del')
 
     def visit_text(self, data):
         self.descend('text')
@@ -145,7 +170,7 @@ class MarkdownParser(parsers.Parser):
         if self.depth.get('html') > 0:
             text = nodes.Text(self.current_node.children[0].astext() + data)
             self.current_node.children[0] = text
-        elif self.title_node: # TODO: prop replace
+        elif hasattr(self, 'title_node') and self.title_node:
             self.title_node.append(text)
             self.title_node = text
         else:
@@ -154,7 +179,7 @@ class MarkdownParser(parsers.Parser):
     def depart_text(self):
         if self.depth.get('html') > 0:
             pass
-        elif self.title_node: # TODO: prop replace
+        elif hasattr(self, 'title_node') and self.title_node:
             self.title_node = self.title_node.parent
         else:
             self.exit_node()
@@ -433,8 +458,11 @@ class MarkdownParser(parsers.Parser):
 
     def visit_code(self, attrs):
         self.descend('code')
-        if self.depth.get('html') > 0 or _.keys(attrs) != ['class']:
+        if self.depth.get('html') > 0:
             self.visit_html('code', attrs)
+        elif self.depth.get('p') > 0:
+            literal = nodes.literal()
+            self.append_node(literal)
         else:
             literal_block = nodes.literal_block()
             class_attr = attrs['class'] if 'class' in attrs else ''
@@ -536,7 +564,7 @@ class MarkdownParser(parsers.Parser):
             self.exit_node()
         self.ascend('strong')
 
-    def visit_html(self, tag, attrs):
+    def visit_html(self, tag, attrs={}):
         self.descend('html')
         if self.depth.get('html') == 1:
             raw = nodes.raw()
@@ -544,9 +572,12 @@ class MarkdownParser(parsers.Parser):
             self.current_node.append(raw)
             self.current_node = raw
         tag_html = '<' + tag + ''.join(
-            _.map(attrs, lambda value, attr: ' ' + attr + '="' + value + '"')
+            _.map(
+                attrs, lambda value, attr: ' ' + attr +
+                (('="' + value + '"') if value != None else '')
+            )
         ) + '>'
-        if len(self.current_node.children): # TODO: dont understand
+        if len(self.current_node.children):  # TODO: dont understand
             text = nodes.Text(
                 self.current_node.children[0].astext() + tag_html
             )
