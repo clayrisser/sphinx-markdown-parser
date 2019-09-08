@@ -9,6 +9,15 @@ meta: data
 ##### h5 Heading
 ###### h6 Heading
 
+## HTML
+
+<div>
+  <h1>html heading 1</h1>
+  <span>
+    <h2>html heading 2</h2>
+  </span>
+</div>
+
 
 ## Horizontal Rules
 
