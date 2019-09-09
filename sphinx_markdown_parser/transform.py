@@ -238,8 +238,8 @@ class AutoStructify(transforms.Transform):
             self.document, node.parent, self.current_level
         )
         # content = node.rawsource.split('\n')
-        content = ''.join([child.astext() for child in node.children]).split('\n')
-        print(content)
+        content = ''.join([child.astext()
+                           for child in node.children]).split('\n')
         language = node['language']
         if language == 'math':
             if self.config['enable_math']:
