@@ -21,7 +21,7 @@ class AutoStructify(transforms.Transform):
         self.reporter = self.document.reporter
         self.config = self.default_config.copy()
         try:
-            new_cfg = self.document.settings.env.config.recommonmark_config
+            new_cfg = self.document.settings.env.config.markdown_parser_config
             self.config.update(new_cfg)
         except AttributeError:
             pass
@@ -237,7 +237,9 @@ class AutoStructify(transforms.Transform):
         self.state_machine.reset(
             self.document, node.parent, self.current_level
         )
-        content = node.rawsource.split('\n')
+        # content = node.rawsource.split('\n')
+        content = ''.join([child.astext() for child in node.children]).split('\n')
+        print(content)
         language = node['language']
         if language == 'math':
             if self.config['enable_math']:

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-from sphinx_markdown_parser.parser import MarkdownParser
+from sphinx_markdown_parser.parser import MarkdownParser, CommonMarkParser
+from sphinx_markdown_parser.transform import AutoStructify
 
 author = 'Jam Risser'
 
@@ -82,9 +83,9 @@ version = '0.0.5'
 def setup(app):
     app.add_source_suffix('.md', 'markdown')
     app.add_source_parser(MarkdownParser)
-    app.add_config_value('recommonmark_config', {
+    # app.add_source_parser(CommonMarkParser)
+    app.add_config_value('markdown_parser_config', {
         'auto_toc_tree_section': 'Content',
-        'enable_auto_doc_ref': True,
         'enable_auto_toc_tree': True,
         'enable_eval_rst': True,
         'enable_inline_math': True,
@@ -92,3 +93,4 @@ def setup(app):
     }, True)
     app.add_stylesheet('styles/main.css')
     app.add_javascript('scripts/main.js')
+    app.add_transform(AutoStructify)

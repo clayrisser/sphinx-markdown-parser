@@ -30,22 +30,34 @@ Then add this to your Sphinx conf.py:
 ::
 
    # for MarkdownParser
-   from recommonmark.parser import MarkdownParser
+   from sphinx_markdown_parser.parser import MarkdownParser
 
-   source_parsers = {
-       '.md': MarkdownParser,
-   }
-
-   source_suffix = ['.rst', '.md']
+   def setup(app):
+       app.add_source_suffix('.md', 'markdown')
+       app.add_source_parser(MarkdownParser)
+       app.add_config_value('markdown_parser_config', {
+           'auto_toc_tree_section': 'Content',
+           'enable_auto_doc_ref': True,
+           'enable_auto_toc_tree': True,
+           'enable_eval_rst': True,
+           'enable_inline_math': True,
+           'enable_math': True,
+       }, True)
 
    # for CommonMarkParser
    from recommonmark.parser import CommonMarkParser
 
-   source_parsers = {
-       '.md': CommonMarkParser,
-   }
-
-   source_suffix = ['.rst', '.md']
+   def setup(app):
+       app.add_source_suffix('.md', 'markdown')
+       app.add_source_parser(CommonMarkParser)
+       app.add_config_value('markdown_parser_config', {
+           'auto_toc_tree_section': 'Content',
+           'enable_auto_doc_ref': True,
+           'enable_auto_toc_tree': True,
+           'enable_eval_rst': True,
+           'enable_inline_math': True,
+           'enable_math': True,
+       }, True)
 
 This allows you to write both ``.md`` and ``.rst`` files inside of the
 same project.
@@ -79,7 +91,7 @@ To use the advanced markdown to rst transformations you must add
 
    # At the bottom of conf.py
    def setup(app):
-       app.add_config_value('recommonmark_config', {
+       app.add_config_value('markdown_parser_config', {
                'url_resolver': lambda url: github_doc_root + url,
                'auto_toc_tree_section': 'Contents',
                }, True)

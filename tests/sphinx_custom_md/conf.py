@@ -23,7 +23,7 @@ html_static_path = ['_static']
 htmlhelp_basename = 'sphinxproj'
 
 def setup(app):
-    app.add_config_value('recommonmark_config', {
+    app.add_config_value('markdown_parser_config', {
             'enable_eval_rst': True,
             'commonmark_suffixes': ['.markdown', '.hpp'],
             }, True)

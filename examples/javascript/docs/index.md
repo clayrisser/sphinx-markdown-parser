@@ -13,6 +13,18 @@ meta: data
 ##### h5 Heading
 ###### h6 Heading
 
+## RST
+
+```eval_rst
+.. js:autofunction:: main
+```
+
+## Math
+
+```math
+E = m c^2
+```
+
 ## Checklist
 * [ ] one
 * [x] two

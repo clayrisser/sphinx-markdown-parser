@@ -32,7 +32,7 @@ from sphinx_markdown_parser.parser import MarkdownParser
 def setup(app):
     app.add_source_suffix('.md', 'markdown')
     app.add_source_parser(MarkdownParser)
-    app.add_config_value('recommonmark_config', {
+    app.add_config_value('markdown_parser_config', {
         'auto_toc_tree_section': 'Content',
         'enable_auto_doc_ref': True,
         'enable_auto_toc_tree': True,
@@ -47,7 +47,7 @@ from recommonmark.parser import CommonMarkParser
 def setup(app):
     app.add_source_suffix('.md', 'markdown')
     app.add_source_parser(CommonMarkParser)
-    app.add_config_value('recommonmark_config', {
+    app.add_config_value('markdown_parser_config', {
         'auto_toc_tree_section': 'Content',
         'enable_auto_doc_ref': True,
         'enable_auto_toc_tree': True,
@@ -78,7 +78,7 @@ from recommonmark.transform import AutoStructify
 
 # At the bottom of conf.py
 def setup(app):
-    app.add_config_value('recommonmark_config', {
+    app.add_config_value('markdown_parser_config', {
             'url_resolver': lambda url: github_doc_root + url,
             'auto_toc_tree_section': 'Contents',
             }, True)

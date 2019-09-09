@@ -14,7 +14,7 @@ is what is actually used to generate this document, see full code at [conf.py](c
 ```python
 github_doc_root = 'https://github.com/rtfd/recommonmark/tree/master/doc/'
 def setup(app):
-    app.add_config_value('recommonmark_config', {
+    app.add_config_value('markdown_parser_config', {
             'url_resolver': lambda url: github_doc_root + url,
             'auto_toc_tree_section': 'Contents',
             }, True)
