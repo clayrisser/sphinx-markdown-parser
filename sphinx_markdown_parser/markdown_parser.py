@@ -429,14 +429,11 @@ class MarkdownParser(parsers.Parser):
         else:
             entry = nodes.entry()
             self.append_node(entry)
-            paragraph = nodes.paragraph()
-            self.append_node(paragraph)
 
     def depart_th(self):
         if self.depth.get('html') > 1:
             self.depart_html('th')
         else:
-            self.exit_node()
             self.exit_node()
         self.ascend('th')
 
@@ -447,14 +444,11 @@ class MarkdownParser(parsers.Parser):
         else:
             entry = nodes.entry()
             self.append_node(entry)
-            paragraph = nodes.paragraph()
-            self.append_node(paragraph)
 
     def depart_td(self):
         if self.depth.get('html') > 1:
             self.depart_html('td')
         else:
-            self.exit_node()
             self.exit_node()
         self.ascend('td')
 
