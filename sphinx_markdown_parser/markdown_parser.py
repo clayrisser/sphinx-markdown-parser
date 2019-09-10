@@ -1,12 +1,12 @@
 """Docutils Markdown parser"""
 
+# from markdown_checklist.extension import ChecklistExtension
+# from markdown_strikethrough import StrikethroughExtension
 # from mdx_unimoji import UnimojiExtension
 from .depth import Depth
 from docutils import parsers, nodes
 from html.parser import HTMLParser
 from markdown import markdown
-from markdown_checklist.extension import ChecklistExtension
-from markdown_strikethrough import StrikethroughExtension
 from pydash import _
 import re
 import yaml
@@ -33,6 +33,8 @@ class MarkdownParser(parsers.Parser):
         html = markdown(
             md + '\n',
             extensions=[
+                # ChecklistExtension(),
+                # StrikethroughExtension(),
                 # UnimojiExtension(),
                 'extra',
                 'nl2br',
@@ -40,8 +42,6 @@ class MarkdownParser(parsers.Parser):
                 'smarty',
                 'toc',
                 'wikilinks',
-                ChecklistExtension(),
-                StrikethroughExtension(),
             ]
         )
         self.convert_html(html)
@@ -309,7 +309,9 @@ class MarkdownParser(parsers.Parser):
 
     def visit_ul(self, attrs):
         self.descend('ul')
-        if self.depth.get('html') > 0 or attrs['class'] == 'checklist':
+        if self.depth.get('html') > 0 or (
+            'class' in attrs and attrs['class'] == 'checklist'
+        ):
             self.visit_html('ul', attrs)
         else:
             bullet_list = nodes.bullet_list()
@@ -356,19 +358,23 @@ class MarkdownParser(parsers.Parser):
 
     def visit_table(self, attrs):
         self.descend('table')
-        self.visit_html('table', attrs)
-        # if self.depth.get('html') > 0:
-        #     self.visit_html('table', attrs)
-        # else:
-        #     table = nodes.table()
-        #     self.append_node(table)
+        if self.depth.get('html') > 0:
+            self.visit_html('table', attrs)
+        else:
+            table = nodes.table()
+            self.append_node(table)
+            tgroup = nodes.tgroup()
+            self.append_node(tgroup)
+            colspec = nodes.colspec()
+            self.append_node(colspec)
+            self.exit_node()
 
     def depart_table(self):
-        self.depart_html('table')
-        # if self.depth.get('html') > 1:
-        #     self.depart_html('table')
-        # else:
-        #     self.exit_node()
+        if self.depth.get('html') > 1:
+            self.depart_html('table')
+        else:
+            self.exit_node()
+            self.exit_node()
         self.ascend('table')
 
     def visit_thead(self, attrs):
@@ -423,11 +429,14 @@ class MarkdownParser(parsers.Parser):
         else:
             entry = nodes.entry()
             self.append_node(entry)
+            paragraph = nodes.paragraph()
+            self.append_node(paragraph)
 
     def depart_th(self):
         if self.depth.get('html') > 1:
             self.depart_html('th')
         else:
+            self.exit_node()
             self.exit_node()
         self.ascend('th')
 
@@ -438,11 +447,14 @@ class MarkdownParser(parsers.Parser):
         else:
             entry = nodes.entry()
             self.append_node(entry)
+            paragraph = nodes.paragraph()
+            self.append_node(paragraph)
 
     def depart_td(self):
         if self.depth.get('html') > 1:
             self.depart_html('td')
         else:
+            self.exit_node()
             self.exit_node()
         self.ascend('td')
 
@@ -596,7 +608,7 @@ class MarkdownParser(parsers.Parser):
         self.ascend('html')
 
     def append_node(self, node):
-        self.current_node.append(node)
+        self.current_node += node
         self.current_node = node
 
     def exit_node(self):

@@ -6,7 +6,7 @@ all: clean
 
 .PHONY: start
 start: env
-	@cd examples/javascript && make html
+	@cd examples/javascript && make markdown
 
 .PHONY: install
 install: env
