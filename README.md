@@ -73,8 +73,7 @@ To use the advanced markdown to rst transformations you must add `AutoStructify`
 
 ```python
 # At top on conf.py (with other import statements)
-import recommonmark
-from recommonmark.transform import AutoStructify
+from sphinx_markdown_parser.transform import AutoStructify
 
 # At the bottom of conf.py
 def setup(app):
