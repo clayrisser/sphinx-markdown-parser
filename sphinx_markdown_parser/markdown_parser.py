@@ -311,7 +311,10 @@ class MarkdownParser(parsers.Parser):
 
     def visit_a(self, node):
         reference = nodes.reference()
-        reference['refuri'] = node.attrib.get('href', '')
+        href = node.attrib.get('href', '')
+        if href.endswith(".md"):
+            href = href[:-3] + ".html"
+        reference['refuri'] = href
         return reference
 
     def visit_ol(self, node):
