@@ -1,8 +1,11 @@
 """Docutils Markdown parser"""
 
+from collections import OrderedDict
+
 from docutils import parsers, nodes
 import markdown
 from markdown import util
+
 from pydash import _
 import re
 import yaml
@@ -86,8 +89,10 @@ class MarkdownParser(parsers.Parser):
             pass
         self.setup_parse(inputstring, document)
         frontmatter = self.get_frontmatter(inputstring)
-        md = self.get_md(inputstring)
-        root = Markdown(extensions=self.config.get('extensions')).parse(md + '\n')
+
+        self.md = Markdown(extensions=self.config.get('extensions'))
+        tree = self.md.parse(self.get_md(inputstring) + "\n")
+        self.prep_raw_html()
 
         # the stack for depth-traverse-reading the markdown AST tree
         self.parse_stack_r = []
@@ -99,7 +104,7 @@ class MarkdownParser(parsers.Parser):
         # node might generate more than one docutils node, e.g.
         # <h1> -> <section><title> in start_new_section
         self.parse_stack_w_old = 1
-        self.walk_markdown_ast(root)
+        self.walk_markdown_ast(tree)
         #text = self.current_node.pformat()
         #print("result:: ==== ")
         #print(text[:min(len(text), text.find("<title>") + 200)])
@@ -127,6 +132,31 @@ class MarkdownParser(parsers.Parser):
                 attrs_dict[item[0]] = item[1]
         return attrs_dict
 
+    def prep_raw_html(self):
+        # code adapted from markedown.core.RawHtmlPostprocessor
+        replacements = OrderedDict()
+        for i in range(self.md.htmlStash.html_counter):
+            html = self.md.htmlStash.rawHtmlBlocks[i]
+            if self.isblocklevel(html):
+                replacements["<p>%s</p>" %
+                             (self.md.htmlStash.get_placeholder(i))] = \
+                    html + "\n"
+            replacements[self.md.htmlStash.get_placeholder(i)] = html
+        self.raw_html = replacements
+        if replacements:
+            self.raw_html_k = re.compile("(" + "|".join(re.escape(k) for k in self.raw_html) + ")")
+        else:
+            self.raw_html_k = None
+
+    def isblocklevel(self, html):
+        m = re.match(r'^\<\/?([^ >]+)', html)
+        if m:
+            if m.group(1)[0] in ('!', '?', '@', '%'):
+                # Comment, php etc...
+                return True
+            return self.md.is_block_level(m.group(1))
+        return False
+
     def walk_markdown_ast(self, node):
         n = node.tag.lower()
         self.parse_stack_w_old = len(self.parse_stack_w)
@@ -141,7 +171,7 @@ class MarkdownParser(parsers.Parser):
             self.append_node(res)
         # add text
         if node.text and node.text.strip():
-            self.parse_stack_w[-1] += nodes.Text(node.text)
+            self.append_text(node.text)
 
         # dispatch might have modified parse_stack_w_old, so read it again
         w_depth = self.parse_stack_w_old
@@ -161,7 +191,7 @@ class MarkdownParser(parsers.Parser):
         self.dispatch(False, n, node, res)
         # add text
         if node.tail and node.tail.strip():
-            self.parse_stack_w[-1] += nodes.Text(node.tail)
+            self.append_text(node.tail)
 
     def dispatch(self, entering, n, *args):
         fn_prefix = "visit" if entering else "depart"
@@ -174,6 +204,22 @@ class MarkdownParser(parsers.Parser):
             raise NotImplementedError("markdown_parser not implemented for <%s>: %s" % (node.tag, node.text))
             # below is for debugging, uncomment prev line to activate
             print(" " * len(self.parse_stack_r) * 2, node.tag, node.text[:40] if node.text else "")
+
+    def append_text(self, text):
+        if not self.raw_html_k:
+            self.parse_stack_w[-1] += nodes.Text(text)
+            return
+        parts = self.raw_html_k.split(text)
+        sep = False
+        for p in parts:
+            if sep:
+                raw = nodes.raw()
+                raw['format'] = 'html'
+                raw += nodes.Text(self.raw_html[p])
+                self.parse_stack_w[-1] += raw
+            else:
+                self.parse_stack_w[-1] += nodes.Text(p)
+            sep = not sep
 
     def append_node(self, node):
         self.parse_stack_w[-1] += node
