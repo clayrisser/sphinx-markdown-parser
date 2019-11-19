@@ -193,17 +193,18 @@ class MarkdownParser(parsers.Parser):
         if node.tail and node.tail.strip():
             self.append_text(node.tail)
 
-    def dispatch(self, entering, n, *args):
+    def dispatch(self, entering, n, node, *args):
         fn_prefix = "visit" if entering else "depart"
         fn_name = "{0}_{1}".format(fn_prefix, n)
         def x(*args): return self.dispatch_default(entering, *args)
-        return getattr(self, fn_name, x)(*args)
+        #if entering:
+        #    print(" " * len(self.parse_stack_r) * 2, node.tag, node.text[:40] if node.text else "")
+        return getattr(self, fn_name, x)(node, *args)
 
     def dispatch_default(self, entering, node, *args):
         if entering:
-            raise NotImplementedError("markdown_parser not implemented for <%s>: %s" % (node.tag, node.text))
-            # below is for debugging, uncomment prev line to activate
-            print(" " * len(self.parse_stack_r) * 2, node.tag, node.text[:40] if node.text else "")
+            self.document.reporter.warning(
+                "markdown node with unknown tag: %s" % node.tag, nodes.Text(node.text))
 
     def append_text(self, text):
         if not self.raw_html_k:
@@ -265,8 +266,8 @@ class MarkdownParser(parsers.Parser):
                 math["number"] = None
                 return math
             else:
-                # arithmatex (as of 2019-11) does not generate these
-                raise NotImplementedError("math/tex script with unknown parent")
+                self.document.reporter.warning(
+                    "math/tex script with unknown parent: %s" % parent.tag)
         else:
             return IGNORE_ALL_CHILDREN
 
