@@ -1,25 +1,79 @@
 """Docutils Markdown parser"""
 
-# from markdown_checklist.extension import ChecklistExtension
-# from markdown_strikethrough import StrikethroughExtension
-# from mdx_unimoji import UnimojiExtension
-from .depth import Depth
+from collections import OrderedDict
+
 from docutils import parsers, nodes
-from html.parser import HTMLParser
-from markdown import markdown
+import markdown
+from markdown import util
+
 from pydash import _
 import re
 import yaml
 
 __all__ = ['MarkdownParser']
 
+TAGS_INLINE = set("""
+b, big, i, small, tt
+abbr, acronym, cite, code, dfn, em, kbd, strong, samp, var
+a, bdo, br, img, map, object, q, script, span, sub, sup
+button, input, label, select, textarea
+""".replace(",","").split())
+INVALID_ANCHOR_CHARS = re.compile("[^-_:.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz]")
+
+def to_html_anchor(s):
+    if not s:
+        return s
+    if not s[0].isalpha():
+        s = "-" + s
+    return INVALID_ANCHOR_CHARS.sub("-", s.lower())
+
+IGNORE_ALL_CHILDREN = object()
+
+
+class Markdown(markdown.Markdown):
+
+    def parse(self, source):
+        """
+        Like super.convert() but returns the parse tree instead of doing
+        postprocessing.
+        """
+
+        # Fixup the source text
+        if not source.strip():
+            return ''  # a blank unicode string
+
+        try:
+            source = util.text_type(source)
+        except UnicodeDecodeError as e:  # pragma: no cover
+            # Customise error message while maintaining original trackback
+            e.reason += '. -- Note: Markdown only accepts unicode input!'
+            raise
+
+        # Split into lines and run the line preprocessors.
+        self.lines = source.split("\n")
+        for prep in self.preprocessors:
+            self.lines = prep.run(self.lines)
+
+        # Parse the high-level elements.
+        root = self.parser.parseDocument(self.lines).getroot()
+
+        # Run the tree-processors
+        for treeprocessor in self.treeprocessors:
+            newRoot = treeprocessor.run(root)
+            if newRoot is not None:
+                root = newRoot
+
+        return root
+
 class MarkdownParser(parsers.Parser):
     """Docutils parser for Markdown"""
 
-    depth = Depth()
-    level = 0
     supported = ('md', 'markdown')
     translate_section_name = None
+
+    default_config = {
+        'extensions': []
+    }
 
     def __init__(self):
         self._level_to_elem = {}
@@ -27,55 +81,36 @@ class MarkdownParser(parsers.Parser):
     def parse(self, inputstring, document):
         self.document = document
         self.current_node = document
+        self.config = self.default_config.copy()
+        try:
+            new_cfg = self.document.settings.env.config.markdown_parser_config
+            self.config.update(new_cfg)
+        except AttributeError:
+            pass
         self.setup_parse(inputstring, document)
         frontmatter = self.get_frontmatter(inputstring)
-        md = self.get_md(inputstring)
-        html = markdown(
-            md + '\n',
-            extensions=[
-                # ChecklistExtension(),
-                # StrikethroughExtension(),
-                # UnimojiExtension(),
-                'extra',
-                'nl2br',
-                'sane_lists',
-                'smarty',
-                'toc',
-                'wikilinks',
-            ]
-        )
-        self.convert_html(html)
+
+        self.md = Markdown(extensions=self.config.get('extensions'))
+        tree = self.md.parse(self.get_md(inputstring) + "\n")
+        self.prep_raw_html()
+
+        # the stack for depth-traverse-reading the markdown AST tree
+        self.parse_stack_r = []
+        # the stack for depth-traverse-writing the docutils AST tree
+        self.parse_stack_w = [self.current_node]
+        # the stack for determining nested sections
+        self.parse_stack_h = [0]
+        # index into parse_stack_w used for special cases where one markdown
+        # node might generate more than one docutils node, e.g.
+        # <h1> -> <section><title> in start_new_section
+        self.parse_stack_w_old = 1
+        self.walk_markdown_ast(tree)
+        #text = self.current_node.pformat()
+        #print("result:: ==== ")
+        #print(text[:min(len(text), text.find("<title>") + 200)])
+        #print("end result")
+
         self.finish_parse()
-
-    def convert_html(self, html):
-        html = html.replace('\n', '')
-
-        class MyHTMLParser(HTMLParser):
-            def handle_starttag(_, tag, attrs):
-                attrs = self.attrs_to_dict(attrs)
-                fn_name = 'visit_' + tag
-                if hasattr(self, fn_name):
-                    fn = getattr(self, fn_name)
-                    fn(attrs)
-                else:
-                    self.visit_html(tag, attrs)
-
-            def handle_endtag(_, tag):
-                fn_name = 'depart_' + tag
-                if hasattr(self, fn_name):
-                    fn = getattr(self, fn_name)
-                    fn()
-                else:
-                    self.depart_html(tag)
-
-            def handle_data(_, data):
-                self.visit_text(data)
-                self.depart_text()
-
-        self.visit_document()
-        parser = MyHTMLParser()
-        parser.feed(html)
-        self.depart_document()
 
     def get_frontmatter(self, string):
         frontmatter = {}
@@ -97,519 +132,249 @@ class MarkdownParser(parsers.Parser):
                 attrs_dict[item[0]] = item[1]
         return attrs_dict
 
-    def convert_ast(self, ast):
-        for (node, entering) in ast.walker():
-            fn_prefix = 'visit' if entering else 'depart'
-            fn_name = '{0}_{1}'.format(fn_prefix, node.t.lower())
-            fn_default = 'default_{0}'.format(fn_prefix)
-            fn = getattr(self, fn_name, None)
-            if fn is None:
-                fn = getattr(self, fn_default)
-            fn(node)
-
-    def visit_section(self, level, attrs):
-        self.descend('section')
-        for i in range(self.level - level + 1):
-            self.depart_section(level)
-        self.level = level
-        section = nodes.section()
-        id_attr = attrs['id'] if 'id' in attrs else ''
-        section['ids'] = id_attr
-        section['names'] = id_attr
-        title = nodes.title()
-        setattr(self, 'title_node', title)
-        section.append(title)
-        self.append_node(section)
-
-    def depart_section(self, level):
-        if (self.current_node.parent):
-            self.exit_node()
-        self.ascend('section')
-
-    def visit_document(self):
-        self.descend('document')
-
-    def depart_document(self):
-        self.ascend('document')
-
-    def visit_p(self, attrs):
-        self.descend('p')
-        if self.depth.get('html') > 0:
-            self.visit_html('p', attrs)
+    def prep_raw_html(self):
+        # code adapted from markedown.core.RawHtmlPostprocessor
+        replacements = OrderedDict()
+        for i in range(self.md.htmlStash.html_counter):
+            html = self.md.htmlStash.rawHtmlBlocks[i]
+            if self.isblocklevel(html):
+                replacements["<p>%s</p>" %
+                             (self.md.htmlStash.get_placeholder(i))] = \
+                    html + "\n"
+            replacements[self.md.htmlStash.get_placeholder(i)] = html
+        self.raw_html = replacements
+        if replacements:
+            self.raw_html_k = re.compile("(" + "|".join(re.escape(k) for k in self.raw_html) + ")")
         else:
-            paragraph = nodes.paragraph()
-            self.append_node(paragraph)
+            self.raw_html_k = None
 
-    def depart_p(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('p')
-        else:
-            self.exit_node()
-        self.ascend('p')
+    def isblocklevel(self, html):
+        m = re.match(r'^\<\/?([^ >]+)', html)
+        if m:
+            if m.group(1)[0] in ('!', '?', '@', '%'):
+                # Comment, php etc...
+                return True
+            return self.md.is_block_level(m.group(1))
+        return False
 
-    def visit_del(self, attrs):
-        self.descend('del')
-        if self.depth.get('html') > 0:
-            self.visit_html('del', attrs)
-        else:
-            paragraph = nodes.paragraph()
-            self.append_node(paragraph)
+    def walk_markdown_ast(self, node):
+        n = node.tag.lower()
+        self.parse_stack_w_old = len(self.parse_stack_w)
+        r_depth = len(self.parse_stack_r)
+        self.parse_stack_w_old = len(self.parse_stack_w)
 
-    def depart_del(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('del')
-        else:
-            self.exit_node()
-        self.ascend('del')
+        res = self.dispatch(True, n, node)
+        if res is IGNORE_ALL_CHILDREN:
+            return
+        # shortcut for pushing one item so visitors don't have to
+        if res is not None and res != self.parse_stack_w[-1]:
+            self.append_node(res)
+        # add text
+        if node.text and node.text.strip():
+            self.append_text(node.text)
 
-    def visit_text(self, data):
-        self.descend('text')
-        text = nodes.Text(data)
-        if self.depth.get('html') > 0:
-            text = nodes.Text(self.current_node.children[0].astext() + data)
-            self.current_node.children[0] = text
-        elif hasattr(self, 'title_node') and self.title_node:
-            self.title_node.append(text)
-            self.title_node = text
-        else:
-            self.append_node(text)
+        # dispatch might have modified parse_stack_w_old, so read it again
+        w_depth = self.parse_stack_w_old
 
-    def depart_text(self):
-        if self.depth.get('html') > 1:
-            pass
-        elif hasattr(self, 'title_node') and self.title_node:
-            self.title_node = self.title_node.parent
-        else:
-            self.exit_node()
-        self.ascend('text')
+        # set stacks and recurse
+        self.current_node = self.parse_stack_w[-1]
+        self.parse_stack_r.append(node)
+        for chd in node.getchildren():
+            self.walk_markdown_ast(chd)
+        self.parse_stack_r.pop()
+        assert r_depth == len(self.parse_stack_r)
+        # restore previous write stack
+        self.parse_stack_w = self.parse_stack_w[:w_depth]
+        self.current_node = self.parse_stack_w[-1]
+        assert w_depth == len(self.parse_stack_w)
 
-    def visit_h1(self, attrs):
-        self.descend('h1')
-        if self.depth.get('html') > 0 or _.keys(attrs) != ['id']:
-            self.visit_html('h1', attrs)
-        else:
-            self.visit_section(1, attrs)
+        self.dispatch(False, n, node, res)
+        # add text
+        if node.tail and node.tail.strip():
+            self.append_text(node.tail)
 
-    def depart_h1(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('h1')
-        else:
-            self.title_node = None
-        self.ascend('h1')
+    def dispatch(self, entering, n, *args):
+        fn_prefix = "visit" if entering else "depart"
+        fn_name = "{0}_{1}".format(fn_prefix, n)
+        def x(*args): return self.dispatch_default(entering, *args)
+        return getattr(self, fn_name, x)(*args)
 
-    def visit_h2(self, attrs):
-        self.descend('h2')
-        if self.depth.get('html') > 0 or _.keys(attrs) != ['id']:
-            self.visit_html('h2', attrs)
-        else:
-            self.visit_section(2, attrs)
+    def dispatch_default(self, entering, node, *args):
+        if entering:
+            raise NotImplementedError("markdown_parser not implemented for <%s>: %s" % (node.tag, node.text))
+            # below is for debugging, uncomment prev line to activate
+            print(" " * len(self.parse_stack_r) * 2, node.tag, node.text[:40] if node.text else "")
 
-    def depart_h2(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('h2')
-        else:
-            self.title_node = None
-        self.ascend('h2')
-
-    def visit_h3(self, attrs):
-        self.descend('h3')
-        if self.depth.get('html') > 0 or _.keys(attrs) != ['id']:
-            self.visit_html('h3', attrs)
-        else:
-            self.visit_section(3, attrs)
-
-    def depart_h3(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('h3')
-        else:
-            self.title_node = None
-        self.ascend('h3')
-
-    def visit_h4(self, attrs):
-        self.descend('h4')
-        if self.depth.get('html') > 0 or _.keys(attrs) != ['id']:
-            self.visit_html('h4', attrs)
-        else:
-            self.visit_section(4, attrs)
-
-    def depart_h4(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('h4')
-        else:
-            self.title_node = None
-        self.ascend('h4')
-
-    def visit_h5(self, attrs):
-        self.descend('h5')
-        if self.depth.get('html') > 0 or _.keys(attrs) != ['id']:
-            self.visit_html('h5', attrs)
-        else:
-            self.visit_section(5, attrs)
-
-    def depart_h5(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('h5')
-        else:
-            self.title_node = None
-        self.ascend('h5')
-
-    def visit_h6(self, attrs):
-        self.descend('h6')
-        if self.depth.get('html') > 0 or _.keys(attrs) != ['id']:
-            self.visit_html('h6', attrs)
-        else:
-            self.visit_section(6, attrs)
-
-    def depart_h6(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('h6')
-        else:
-            self.title_node = None
-        self.ascend('h6')
-
-    def visit_a(self, attrs):
-        self.descend('a')
-        if self.depth.get('html') > 0 or _.keys(attrs) != ['href']:
-            self.visit_html('a', attrs)
-        else:
-            reference = nodes.reference()
-            reference['refuri'] = attrs['href'] if 'href' in attrs else ''
-            if self.title_node:
-                self.title_node.append(reference)
-                self.title_node = reference
+    def append_text(self, text):
+        if not self.raw_html_k:
+            self.parse_stack_w[-1] += nodes.Text(text)
+            return
+        parts = self.raw_html_k.split(text)
+        sep = False
+        for p in parts:
+            if sep:
+                raw = nodes.raw()
+                raw['format'] = 'html'
+                raw += nodes.Text(self.raw_html[p])
+                self.parse_stack_w[-1] += raw
             else:
-                self.append_node(reference)
-
-    def depart_a(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('a')
-        elif self.title_node:
-            self.title_node = self.title_node.parent
-        else:
-            self.exit_node()
-        self.ascend('a')
-
-    def visit_img(self, attrs):
-        self.descend('img')
-        if self.depth.get('html') > 0 or _.keys(attrs) != ['alt', 'src']:
-            self.visit_html('img', attrs)
-        else:
-            image = nodes.image()
-            image['uri'] = attrs['src'] if 'src' in attrs else ''
-            self.append_node(image)
-            self.visit_text(attrs['alt'] if 'alt' in attrs else '')
-
-    def depart_img(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('img')
-        else:
-            self.depart_text()
-            self.exit_node()
-        self.ascend('img')
-
-    def visit_ul(self, attrs):
-        self.descend('ul')
-        if self.depth.get('html') > 0 or (
-            'class' in attrs and attrs['class'] == 'checklist'
-        ):
-            self.visit_html('ul', attrs)
-        else:
-            bullet_list = nodes.bullet_list()
-            self.append_node(bullet_list)
-
-    def depart_ul(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('ul')
-        else:
-            self.exit_node()
-        self.ascend('ul')
-
-    def visit_ol(self, attrs):
-        self.descend('ol')
-        if self.depth.get('html') > 0:
-            self.visit_html('ol', attrs)
-        else:
-            enumerated_list = nodes.enumerated_list()
-            self.append_node(enumerated_list)
-
-    def depart_ol(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('ol')
-        else:
-            self.exit_node()
-        self.ascend('ol')
-
-    def visit_li(self, attrs):
-        self.descend('li')
-        if self.depth.get('html') > 0:
-            self.visit_html('li', attrs)
-        else:
-            list_item = nodes.list_item()
-            self.append_node(list_item)
-            self.visit_p([])
-
-    def depart_li(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('li')
-        else:
-            self.depart_p()
-            self.exit_node()
-        self.ascend('li')
-
-    def visit_table(self, attrs):
-        self.descend('table')
-        if self.depth.get('html') > 0:
-            self.visit_html('table', attrs)
-        else:
-            table = nodes.table()
-            self.append_node(table)
-            tgroup = nodes.tgroup()
-            self.append_node(tgroup)
-            colspec = nodes.colspec()
-            self.append_node(colspec)
-            self.exit_node()
-
-    def depart_table(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('table')
-        else:
-            self.exit_node()
-            self.exit_node()
-        self.ascend('table')
-
-    def visit_thead(self, attrs):
-        self.descend('thead')
-        if self.depth.get('html') > 0:
-            self.visit_html('thead', attrs)
-        else:
-            thead = nodes.thead()
-            self.append_node(thead)
-
-    def depart_thead(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('thead')
-        else:
-            self.exit_node()
-        self.ascend('thead')
-
-    def visit_tbody(self, attrs):
-        self.descend('tbody')
-        if self.depth.get('html') > 0:
-            self.visit_html('tbody', attrs)
-        else:
-            tbody = nodes.tbody()
-            self.append_node(tbody)
-
-    def depart_tbody(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('tbody')
-        else:
-            self.exit_node()
-        self.ascend('tbody')
-
-    def visit_tr(self, attrs):
-        self.descend('tr')
-        if self.depth.get('html') > 0:
-            self.visit_html('tr', attrs)
-        else:
-            row = nodes.row()
-            self.append_node(row)
-
-    def depart_tr(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('tr')
-        else:
-            self.exit_node()
-        self.ascend('tr')
-
-    def visit_th(self, attrs):
-        self.descend('th')
-        if self.depth.get('html') > 0:
-            self.visit_html('th', attrs)
-        else:
-            entry = nodes.entry()
-            self.append_node(entry)
-
-    def depart_th(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('th')
-        else:
-            self.exit_node()
-        self.ascend('th')
-
-    def visit_td(self, attrs):
-        self.descend('td')
-        if self.depth.get('html') > 0:
-            self.visit_html('td', attrs)
-        else:
-            entry = nodes.entry()
-            self.append_node(entry)
-
-    def depart_td(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('td')
-        else:
-            self.exit_node()
-        self.ascend('td')
-
-    def visit_pre(self, attrs):
-        self.descend('pre')
-        if self.depth.get('html') > 0:
-            self.visit_html('pre', attrs)
-
-    def depart_pre(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('pre')
-        self.ascend('pre')
-
-    def visit_code(self, attrs):
-        self.descend('code')
-        if self.depth.get('html') > 0:
-            self.visit_html('code', attrs)
-        elif self.depth.get('p') > 0:
-            literal = nodes.literal()
-            self.append_node(literal)
-        else:
-            literal_block = nodes.literal_block()
-            class_attr = attrs['class'] if 'class' in attrs else ''
-            if len(class_attr):
-                literal_block['language'] = class_attr
-            self.append_node(literal_block)
-
-    def depart_code(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('code')
-        else:
-            self.exit_node()
-        self.ascend('code')
-
-    def visit_blockquote(self, attrs):
-        self.descend('blockquote')
-        if self.depth.get('html') > 0:
-            self.visit_html('blockquote', attrs)
-        else:
-            block_quote = nodes.block_quote()
-            self.append_node(block_quote)
-
-    def depart_blockquote(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('blockquote')
-        else:
-            self.exit_node()
-        self.ascend('blockquote')
-
-    def visit_hr(self, attrs):
-        self.descend('hr')
-        if self.depth.get('html') > 0:
-            self.visit_html('hr', attrs)
-        else:
-            transition = nodes.transition()
-            self.append_node(transition)
-
-    def depart_hr(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('hr')
-        else:
-            self.exit_node()
-        self.ascend('hr')
-
-    def visit_br(self, attrs):
-        self.descend('br')
-        if self.depth.get('html') > 0:
-            self.visit_html('br', attrs)
-        else:
-            text = nodes.Text('\n')
-            self.append_node(text)
-
-    def depart_br(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('br')
-        else:
-            self.exit_node()
-        self.ascend('br')
-
-    def visit_em(self, attrs):
-        self.descend('em')
-        if self.depth.get('html') > 0:
-            self.visit_html('em', attrs)
-        else:
-            emphasis = nodes.emphasis()
-            if self.title_node:
-                self.title_node.append(emphasis)
-                self.title_node = emphasis
-            else:
-                self.append_node(emphasis)
-
-    def depart_em(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('em')
-        elif self.title_node:
-            self.title_node = self.title_node.parent
-        else:
-            self.exit_node()
-        self.ascend('em')
-
-    def visit_strong(self, attrs):
-        self.descend('strong')
-        if self.depth.get('html') > 0:
-            self.visit_html('strong', attrs)
-        else:
-            strong = nodes.strong()
-            if self.title_node:
-                self.title_node.append(strong)
-                self.title_node = strong
-            else:
-                self.append_node(strong)
-
-    def depart_strong(self):
-        if self.depth.get('html') > 1:
-            self.depart_html('strong')
-        elif self.title_node:
-            self.title_node = self.title_node.parent
-        else:
-            self.exit_node()
-        self.ascend('strong')
-
-    def visit_html(self, tag, attrs={}):
-        self.descend('html')
-        if self.depth.get('html') == 1:
-            raw = nodes.raw()
-            raw['format'] = 'html'
-            self.current_node.append(raw)
-            self.current_node = raw
-        tag_html = '<' + tag + ''.join(
-            _.map(
-                attrs, lambda value, attr: ' ' + attr +
-                (('="' + value + '"') if value != None else '')
-            )
-        ) + '>'
-        if len(self.current_node.children):  # TODO: dont understand
-            text = nodes.Text(
-                self.current_node.children[0].astext() + tag_html
-            )
-            self.current_node.children[0] = text
-        else:
-            text = nodes.Text(tag_html)
-            self.current_node.append(text)
-
-    def depart_html(self, tag):
-        text = nodes.Text(
-            self.current_node.children[0].astext() + '</' + tag + '>'
-        )
-        self.current_node.children[0] = text
-        if self.depth.get('html') == 1:
-            self.current_node = self.current_node.parent
-        self.ascend('html')
+                self.parse_stack_w[-1] += nodes.Text(p)
+            sep = not sep
 
     def append_node(self, node):
-        self.current_node += node
-        self.current_node = node
+        self.parse_stack_w[-1] += node
+        self.parse_stack_w.append(node)
+        return node
 
-    def exit_node(self):
-        self.current_node = self.current_node.parent
+    def new_section(self, heading):
+        section = nodes.section()
+        section['ids'] = [to_html_anchor("".join(heading.itertext()))]
+        return section
 
-    def ascend(self, name):
-        self.depth.ascend(name)
+    def start_new_section(self, lvl, heading):
+        if lvl > self.parse_stack_h[-1]:
+            self.append_node(self.new_section(heading))
+        elif lvl == self.parse_stack_h[-1]:
+            x = self.parse_stack_w.pop()
+            assert isinstance(x, nodes.section) or isinstance(x, nodes.document)
+            self.append_node(self.new_section(heading))
+        elif lvl < self.parse_stack_h[-1]:
+            x = self.parse_stack_w.pop()
+            assert isinstance(x, nodes.section) or isinstance(x, nodes.document)
+            x = self.parse_stack_w.pop()
+            assert isinstance(x, nodes.section) or isinstance(x, nodes.document)
+            self.append_node(self.new_section(heading))
+        # don't rewind past this, when departing the <hn> tag
+        self.parse_stack_w_old = len(self.parse_stack_w)
+        self.parse_stack_h.append(lvl)
+        assert isinstance(self.parse_stack_w[-1], nodes.section)
+        return nodes.title()
 
-    def descend(self, name):
-        self.depth.descend(name)
+    def visit_script(self, node):
+        return IGNORE_ALL_CHILDREN
+
+    def visit_p(self, node):
+        return nodes.paragraph()
+
+    def visit_span(self, node):
+        if "MathJax_Preview" in node.attrib.get("class", "").split():
+            self.parse_stack_w[-1] += nodes.Text("$")
+            return None
+        return None
+
+    def depart_span(self, node, _):
+        if "MathJax_Preview" in node.attrib.get("class", "").split():
+            self.parse_stack_w[-1] += nodes.Text("$")
+            return None
+        return None
+
+    def visit_div(self, node):
+        if len(self.parse_stack_w) == 1:
+            # top-level, ignore
+            return None
+        if "MathJax_Preview" in node.attrib.get("class", "").split():
+            self.parse_stack_w[-1] += nodes.Text("$$")
+            return None
+        return nodes.paragraph()
+
+    def depart_div(self, node, _):
+        if "MathJax_Preview" in node.attrib.get("class", "").split():
+            self.parse_stack_w[-1] += nodes.Text("$$")
+            return None
+
+    def visit_h1(self, node):
+        return self.start_new_section(1, node)
+
+    def visit_h2(self, node):
+        return self.start_new_section(2, node)
+
+    def visit_h3(self, node):
+        return self.start_new_section(3, node)
+
+    def visit_h4(self, node):
+        return self.start_new_section(4, node)
+
+    def visit_h5(self, node):
+        return self.start_new_section(5, node)
+
+    def visit_h6(self, node):
+        return self.start_new_section(6, node)
+
+    def visit_strong(self, node):
+        return nodes.strong()
+
+    def visit_em(self, node):
+        return nodes.emphasis()
+
+    def visit_br(self, node):
+        return nodes.Text('\n')
+
+    def visit_a(self, node):
+        reference = nodes.reference()
+        href = node.attrib.get('href', '')
+        if href.endswith(".md"):
+            href = href[:-3] + ".html"
+        reference['refuri'] = href
+        return reference
+
+    def visit_ol(self, node):
+        return nodes.enumerated_list()
+
+    def visit_ul(self, node):
+        return nodes.bullet_list()
+
+    def visit_li(self, node):
+        ch = node.getchildren()
+        # extra "paragraph" is needed to avoid breaking docutils assumptions
+        if not ch or ch[0].tag in TAGS_INLINE:
+            self.append_node(nodes.list_item())
+            return nodes.paragraph()
+        else:
+            return nodes.list_item()
+
+    def visit_img(self, node):
+        image = nodes.image()
+        image['uri'] = node.attrib.get('src', '')
+        image['alt'] = node.attrib.get('alt', '')
+        return image
+
+    def visit_hr(self, node):
+        return nodes.transition()
+
+    def visit_blockquote(self, node):
+        return nodes.block_quote()
+
+    def visit_table(self, node):
+        # pymarkdown does not generate these but docutils expects them
+        table = nodes.table()
+        table['classes'] = ["colwidths-auto"]
+        self.append_node(table)
+        tgroup = nodes.tgroup()
+        # the below hack is needed because docutils expects colspecs
+        # ideally we would find the actual number of columns of the table but
+        # i couldn't be bothered writing the code
+        for _ in len(node.iter()):
+            tgroup += nodes.colspec()
+        tgroup['stub'] = None
+        return tgroup
+
+    def visit_thead(self, node):
+        return nodes.thead()
+
+    def visit_tbody(self, node):
+        return nodes.tbody()
+
+    def visit_tr(self, node):
+        return nodes.row()
+
+    def visit_th(self, node):
+        return nodes.entry()
+
+    def visit_td(self, node):
+        return nodes.entry()
+
+    def visit_code(self, node):
+        return nodes.literal()
+
+    def visit_pre(self, node):
+        return nodes.literal_block()
