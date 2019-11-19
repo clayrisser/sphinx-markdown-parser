@@ -269,21 +269,11 @@ class MarkdownParser(parsers.Parser):
         return section
 
     def start_new_section(self, lvl, heading):
-        if lvl > self.parse_stack_h[-1]:
-            self.append_node(self.new_section(heading))
-        elif lvl == self.parse_stack_h[-1]:
+        while lvl <= self.parse_stack_h[-1]:
             x = self.parse_stack_w.pop()
-            assert isinstance(x, (nodes.section, nodes.document))
+            assert isinstance(x, nodes.section)
             self.parse_stack_h.pop()
-            self.append_node(self.new_section(heading))
-        elif lvl < self.parse_stack_h[-1]:
-            x = self.parse_stack_w.pop()
-            assert isinstance(x, (nodes.section, nodes.document))
-            self.parse_stack_h.pop()
-            x = self.parse_stack_w.pop()
-            assert isinstance(x, (nodes.section, nodes.document))
-            self.parse_stack_h.pop()
-            self.append_node(self.new_section(heading))
+        self.append_node(self.new_section(heading))
         self.reset_w_old()
         self.parse_stack_h.append(lvl)
         assert isinstance(self.parse_stack_w[-1], nodes.section)

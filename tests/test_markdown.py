@@ -56,6 +56,12 @@ class TestParsing(unittest.TestCase):
 
             ## [B](#b)
 
+            ### level 3
+
+            #### level 4
+
+            ## level 2
+
             ![ello](some-image.img)
 
             * one
@@ -105,6 +111,15 @@ class TestParsing(unittest.TestCase):
                   <title>
                     <reference refuri="#b">B</reference>
                   </title>
+                  <section ids="level-3" names="level-3">
+                    <title>level 3</title>
+                    <section ids="level-4" names="level-4">
+                      <title>level 4</title>
+                    </section>
+                  </section>
+                </section>
+                <section ids="level-2" names="level-2">
+                  <title>level 2</title>
                   <paragraph>
                     <image uri="some-image.img">ello</image>
                   </paragraph>
