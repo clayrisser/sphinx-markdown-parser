@@ -19,6 +19,7 @@ a, bdo, br, img, map, object, q, script, span, sub, sup
 button, input, label, select, textarea
 """.replace(",","").split())
 INVALID_ANCHOR_CHARS = re.compile("[^-_:.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz]")
+MAYBE_HTML_TAG = re.compile("<([a-z]+)")
 
 def to_html_anchor(s):
     if not s:
@@ -75,13 +76,14 @@ class MarkdownParser(parsers.Parser):
         'extensions': []
     }
 
-    def __init__(self):
+    def __init__(self, config={}):
         self._level_to_elem = {}
+        self.config = self.default_config.copy()
+        self.config.update(config)
 
     def parse(self, inputstring, document):
         self.document = document
         self.current_node = document
-        self.config = self.default_config.copy()
         try:
             new_cfg = self.document.settings.env.config.markdown_parser_config
             self.config.update(new_cfg)
@@ -119,7 +121,7 @@ class MarkdownParser(parsers.Parser):
         if len(frontmatter_regex) and len(frontmatter_regex[0]):
             frontmatter_string = frontmatter_regex[0][0]
         if len(frontmatter_string):
-            frontmatter = yaml.load(frontmatter_string)
+            frontmatter = yaml.safe_load(frontmatter_string)
         return frontmatter
 
     def get_md(self, string):
@@ -159,7 +161,6 @@ class MarkdownParser(parsers.Parser):
 
     def walk_markdown_ast(self, node):
         n = node.tag.lower()
-        self.parse_stack_w_old = len(self.parse_stack_w)
         r_depth = len(self.parse_stack_r)
         self.parse_stack_w_old = len(self.parse_stack_w)
 
@@ -179,7 +180,7 @@ class MarkdownParser(parsers.Parser):
         # set stacks and recurse
         self.current_node = self.parse_stack_w[-1]
         self.parse_stack_r.append(node)
-        for chd in node.getchildren():
+        for chd in node:
             self.walk_markdown_ast(chd)
         self.parse_stack_r.pop()
         assert r_depth == len(self.parse_stack_r)
@@ -208,28 +209,59 @@ class MarkdownParser(parsers.Parser):
 
     def append_text(self, text):
         if not self.raw_html_k:
-            self.parse_stack_w[-1] += nodes.Text(text)
-            return
-        parts = self.raw_html_k.split(text)
-        sep = False
-        for p in parts:
-            if sep:
-                raw = nodes.raw()
-                raw['format'] = 'html'
-                raw += nodes.Text(self.raw_html[p])
-                self.parse_stack_w[-1] += raw
+            text1 = text
+        else:
+            text1 = self.raw_html_k.sub(lambda m: self.raw_html[m.group(0)], text)
+
+        strip_p = False
+        if text1 == text:
+            content = nodes.Text(text)
+
+        # hacky workaround for fenced_code
+        elif text1.startswith("<pre><code") and text1.endswith("</code></pre>"):
+            text = text1[10:-13]
+            if text.startswith(">"):
+                content = nodes.literal_block(text[1:], text[1:])
+            elif text.startswith(' class="'):
+                text = text[8:]
+                langi = text.find('"')
+                lang = text[:langi]
+                text = text[langi+2:].rstrip("\n")
+                content = nodes.literal_block(text, text, language=lang)
             else:
-                self.parse_stack_w[-1] += nodes.Text(p)
-            sep = not sep
+                self.document.reporter.warning(
+                    "aborting attempt to parse invalid raw code block", nodes.Text(text1))
+                content = nodes.raw(text1, text1, format='html')
+            strip_p = True
+        else:
+            tags = MAYBE_HTML_TAG.findall(text1)
+            # hacky heuristic to determine whether to strip <p> or not
+            if not all((t in TAGS_INLINE for t in tags)):
+                strip_p = True
+            content = nodes.raw(text1, text1, format='html')
+
+        parent = self.parse_stack_w[-1]
+        if strip_p and len(parent) == 0 and isinstance(parent, nodes.paragraph):
+            x = self.pop_node()
+        self.parse_stack_w[-1] += content
 
     def append_node(self, node):
         self.parse_stack_w[-1] += node
         self.parse_stack_w.append(node)
         return node
 
+    def pop_node(self):
+        x = self.parse_stack_w.pop()
+        self.parse_stack_w_old = len(self.parse_stack_w)
+        y = x.parent.children.pop()
+        assert y is x
+        return x
+
     def new_section(self, heading):
         section = nodes.section()
-        section['ids'] = [to_html_anchor("".join(heading.itertext()))]
+        anchor = to_html_anchor("".join(heading.itertext()))
+        section['ids'] = [anchor]
+        section['names'] = [anchor]
         return section
 
     def start_new_section(self, lvl, heading):
@@ -237,15 +269,15 @@ class MarkdownParser(parsers.Parser):
             self.append_node(self.new_section(heading))
         elif lvl == self.parse_stack_h[-1]:
             x = self.parse_stack_w.pop()
-            assert isinstance(x, nodes.section) or isinstance(x, nodes.document)
+            assert isinstance(x, (nodes.section, nodes.document))
             self.parse_stack_h.pop()
             self.append_node(self.new_section(heading))
         elif lvl < self.parse_stack_h[-1]:
             x = self.parse_stack_w.pop()
-            assert isinstance(x, nodes.section) or isinstance(x, nodes.document)
+            assert isinstance(x, (nodes.section, nodes.document))
             self.parse_stack_h.pop()
             x = self.parse_stack_w.pop()
-            assert isinstance(x, nodes.section) or isinstance(x, nodes.document)
+            assert isinstance(x, (nodes.section, nodes.document))
             self.parse_stack_h.pop()
             self.append_node(self.new_section(heading))
         # don't rewind past this, when departing the <hn> tag
@@ -329,7 +361,7 @@ class MarkdownParser(parsers.Parser):
         return nodes.bullet_list()
 
     def visit_li(self, node):
-        ch = node.getchildren()
+        ch = list(node)
         # extra "paragraph" is needed to avoid breaking docutils assumptions
         if not ch or ch[0].tag in TAGS_INLINE:
             self.append_node(nodes.list_item())
@@ -340,7 +372,9 @@ class MarkdownParser(parsers.Parser):
     def visit_img(self, node):
         image = nodes.image()
         image['uri'] = node.attrib.get('src', '')
-        image['alt'] = node.attrib.get('alt', '')
+        alt = node.attrib.get('alt', '')
+        if alt:
+            image += nodes.Text(alt)
         return image
 
     def visit_hr(self, node):
@@ -355,9 +389,8 @@ class MarkdownParser(parsers.Parser):
         table['classes'] = ["colwidths-auto"]
         self.append_node(table)
         tgroup = nodes.tgroup()
-        # ideally we would find the actual number of columns of the table but
-        # i couldn't be bothered writing the code
-        for _ in len(node.iter()):
+        maxrow = max(len(row.findall("td")) for row in node.findall("*/tr"))
+        for _ in range(maxrow):
             tgroup += nodes.colspec()
         tgroup['stub'] = None
         return tgroup
@@ -378,7 +411,20 @@ class MarkdownParser(parsers.Parser):
         return nodes.entry()
 
     def visit_code(self, node):
-        return nodes.literal()
+        parent = self.parse_stack_r[-1]
+        if len(parent) == 1 and parent.tag == "p" and not parent.text:
+            x = self.pop_node()
+            assert isinstance(x, nodes.paragraph)
+            block = nodes.literal_block()
+            # note: this isn't yet activated because fenced_code extension
+            # outputs raw html block, not a regular markdown ast tree. instead
+            # what is actually run is the hacky workaround in append_text
+            lang = node.get("class", "")
+            if lang:
+                block["language"] = lang
+            return block
+        else:
+            return nodes.literal()
 
     def visit_pre(self, node):
         return nodes.literal_block()
