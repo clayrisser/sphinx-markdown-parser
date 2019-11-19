@@ -96,15 +96,14 @@ class MarkdownParser(parsers.Parser):
         tree = self.md.parse(self.get_md(inputstring) + "\n")
         self.prep_raw_html()
 
-        # the stack for depth-traverse-reading the markdown AST tree
+        # the stack for depth-traverse-reading the markdown AST
         self.parse_stack_r = []
-        # the stack for depth-traverse-writing the docutils AST tree
+        # the stack for depth-traverse-writing the docutils AST
         self.parse_stack_w = [self.current_node]
         # the stack for determining nested sections
         self.parse_stack_h = [0]
-        # index into parse_stack_w used for special cases where one markdown
-        # node might generate more than one docutils node, e.g.
-        # <h1> -> <section><title> in start_new_section
+        # index into parse_stack_w used for special cases where enter_* wants
+        # to append >1 node (e.g. start_new_section) or pop a node
         self.parse_stack_w_old = 1
         self.walk_markdown_ast(tree)
         #text = self.current_node.pformat()
@@ -233,6 +232,7 @@ class MarkdownParser(parsers.Parser):
                     "aborting attempt to parse invalid raw code block", nodes.Text(text1))
                 content = nodes.raw(text1, text1, format='html')
             strip_p = True
+
         else:
             tags = MAYBE_HTML_TAG.findall(text1)
             # hacky heuristic to determine whether to strip <p> or not
@@ -245,6 +245,10 @@ class MarkdownParser(parsers.Parser):
             x = self.pop_node()
         self.parse_stack_w[-1] += content
 
+    def reset_w_old(self):
+        # reset parse_stack_w_old so that walk_markdown_ast rewinds there
+        self.parse_stack_w_old = len(self.parse_stack_w)
+
     def append_node(self, node):
         self.parse_stack_w[-1] += node
         self.parse_stack_w.append(node)
@@ -252,7 +256,7 @@ class MarkdownParser(parsers.Parser):
 
     def pop_node(self):
         x = self.parse_stack_w.pop()
-        self.parse_stack_w_old = len(self.parse_stack_w)
+        self.reset_w_old()
         y = x.parent.children.pop()
         assert y is x
         return x
@@ -280,8 +284,7 @@ class MarkdownParser(parsers.Parser):
             assert isinstance(x, (nodes.section, nodes.document))
             self.parse_stack_h.pop()
             self.append_node(self.new_section(heading))
-        # don't rewind past this, when departing the <hn> tag
-        self.parse_stack_w_old = len(self.parse_stack_w)
+        self.reset_w_old()
         self.parse_stack_h.append(lvl)
         assert isinstance(self.parse_stack_w[-1], nodes.section)
         return nodes.title()
