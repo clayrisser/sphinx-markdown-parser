@@ -25,6 +25,13 @@ First you install it:
 
     pip install sphinx-markdown-parser
 
+If using MarkdownParser, you may also want to install some extensions
+for it:
+
+::
+
+    pip install pymdown-extensions
+
 Then add this to your Sphinx conf.py:
 
 ::
@@ -40,8 +47,6 @@ Then add this to your Sphinx conf.py:
             'enable_auto_doc_ref': True,
             'enable_auto_toc_tree': True,
             'enable_eval_rst': True,
-            'enable_inline_math': True,
-            'enable_math': True,
             'extensions': [
                 'extra',
                 'nl2br',
@@ -49,7 +54,8 @@ Then add this to your Sphinx conf.py:
                 'smarty',
                 'toc',
                 'wikilinks',
-            ]
+                'pymdownx.arithmatex',
+            ],
         }, True)
 
     # for CommonMarkParser
