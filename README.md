@@ -39,6 +39,14 @@ def setup(app):
         'enable_eval_rst': True,
         'enable_inline_math': True,
         'enable_math': True,
+        'extensions': [
+            'extra',
+            'nl2br',
+            'sane_lists',
+            'smarty',
+            'toc',
+            'wikilinks',
+        ],
     }, True)
 
 # for CommonMarkParser
