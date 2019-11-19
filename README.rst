@@ -23,41 +23,41 @@ First you install it:
 
 ::
 
-   pip install sphinx-markdown-parser
+    pip install sphinx-markdown-parser
 
 Then add this to your Sphinx conf.py:
 
 ::
 
-   # for MarkdownParser
-   from sphinx_markdown_parser.parser import MarkdownParser
+    # for MarkdownParser
+    from sphinx_markdown_parser.parser import MarkdownParser
 
-   def setup(app):
-       app.add_source_suffix('.md', 'markdown')
-       app.add_source_parser(MarkdownParser)
-       app.add_config_value('markdown_parser_config', {
-           'auto_toc_tree_section': 'Content',
-           'enable_auto_doc_ref': True,
-           'enable_auto_toc_tree': True,
-           'enable_eval_rst': True,
-           'enable_inline_math': True,
-           'enable_math': True,
-       }, True)
+    def setup(app):
+        app.add_source_suffix('.md', 'markdown')
+        app.add_source_parser(MarkdownParser)
+        app.add_config_value('markdown_parser_config', {
+            'auto_toc_tree_section': 'Content',
+            'enable_auto_doc_ref': True,
+            'enable_auto_toc_tree': True,
+            'enable_eval_rst': True,
+            'enable_inline_math': True,
+            'enable_math': True,
+        }, True)
 
-   # for CommonMarkParser
-   from recommonmark.parser import CommonMarkParser
+    # for CommonMarkParser
+    from recommonmark.parser import CommonMarkParser
 
-   def setup(app):
-       app.add_source_suffix('.md', 'markdown')
-       app.add_source_parser(CommonMarkParser)
-       app.add_config_value('markdown_parser_config', {
-           'auto_toc_tree_section': 'Content',
-           'enable_auto_doc_ref': True,
-           'enable_auto_toc_tree': True,
-           'enable_eval_rst': True,
-           'enable_inline_math': True,
-           'enable_math': True,
-       }, True)
+    def setup(app):
+        app.add_source_suffix('.md', 'markdown')
+        app.add_source_parser(CommonMarkParser)
+        app.add_config_value('markdown_parser_config', {
+            'auto_toc_tree_section': 'Content',
+            'enable_auto_doc_ref': True,
+            'enable_auto_toc_tree': True,
+            'enable_eval_rst': True,
+            'enable_inline_math': True,
+            'enable_math': True,
+        }, True)
 
 This allows you to write both ``.md`` and ``.rst`` files inside of the
 same project.
@@ -65,7 +65,7 @@ same project.
 Links
 ~~~~~
 
-For all links in commonmark that aren’t explicit URLs, they are treated
+For all links in commonmark that aren't explicit URLs, they are treated
 as cross references with the
 ```:any:`` <http://www.sphinx-doc.org/en/stable/markup/inline.html#role-any>`__
 role. This allows referencing a lot of things including files, labels,
@@ -85,16 +85,16 @@ To use the advanced markdown to rst transformations you must add
 
 .. code:: python
 
-   # At top on conf.py (with other import statements)
-   from sphinx_markdown_parser.transform import AutoStructify
+    # At top on conf.py (with other import statements)
+    from sphinx_markdown_parser.transform import AutoStructify
 
-   # At the bottom of conf.py
-   def setup(app):
-       app.add_config_value('markdown_parser_config', {
-               'url_resolver': lambda url: github_doc_root + url,
-               'auto_toc_tree_section': 'Contents',
-               }, True)
-       app.add_transform(AutoStructify)
+    # At the bottom of conf.py
+    def setup(app):
+        app.add_config_value('markdown_parser_config', {
+                'url_resolver': lambda url: github_doc_root + url,
+                'auto_toc_tree_section': 'Contents',
+                }, True)
+        app.add_transform(AutoStructify)
 
 See https://github.com/rtfd/recommonmark/blob/master/docs/conf.py for a
 full example.
@@ -103,16 +103,16 @@ AutoStructify comes with the following options. See
 http://recommonmark.readthedocs.org/en/latest/auto_structify.html for
 more information about the specific features.
 
--  **enable_auto_toc_tree**: enable the Auto Toc Tree feature.
--  **auto_toc_tree_section**: when True, Auto Toc Tree will only be
+-  **enable\_auto\_toc\_tree**: enable the Auto Toc Tree feature.
+-  **auto\_toc\_tree\_section**: when True, Auto Toc Tree will only be
    enabled on section that matches the title.
--  **enable_auto_doc_ref**: enable the Auto Doc Ref feature.
+-  **enable\_auto\_doc\_ref**: enable the Auto Doc Ref feature.
    **Deprecated**
--  **enable_math**: enable the Math Formula feature.
--  **enable_inline_math**: enable the Inline Math feature.
--  **enable_eval_rst**: enable the evaluate embedded reStructuredText
+-  **enable\_math**: enable the Math Formula feature.
+-  **enable\_inline\_math**: enable the Inline Math feature.
+-  **enable\_eval\_rst**: enable the evaluate embedded reStructuredText
    feature.
--  **url_resolver**: a function that maps a existing relative position
+-  **url\_resolver**: a function that maps a existing relative position
    in the document to a http link
 
 Development
