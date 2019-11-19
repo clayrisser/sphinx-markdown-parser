@@ -254,21 +254,28 @@ class MarkdownParser(parsers.Parser):
         return nodes.title()
 
     def visit_script(self, node):
-        return IGNORE_ALL_CHILDREN
+        if node.get("type", "").split(";")[0] == "math/tex":
+            parent = self.parse_stack_r[-1]
+            if parent.tag == "span":
+                return nodes.math()
+            elif parent.tag == "div":
+                # sphinx mathjax crashes without these attributes present
+                math = nodes.math_block()
+                math["nowrap"] = None
+                math["number"] = None
+                return math
+            else:
+                # arithmatex (as of 2019-11) does not generate these
+                raise NotImplementedError("math/tex script with unknown parent")
+        else:
+            return IGNORE_ALL_CHILDREN
 
     def visit_p(self, node):
         return nodes.paragraph()
 
     def visit_span(self, node):
         if "MathJax_Preview" in node.attrib.get("class", "").split():
-            self.parse_stack_w[-1] += nodes.Text("$")
-            return None
-        return None
-
-    def depart_span(self, node, _):
-        if "MathJax_Preview" in node.attrib.get("class", "").split():
-            self.parse_stack_w[-1] += nodes.Text("$")
-            return None
+            return IGNORE_ALL_CHILDREN
         return None
 
     def visit_div(self, node):
@@ -276,14 +283,8 @@ class MarkdownParser(parsers.Parser):
             # top-level, ignore
             return None
         if "MathJax_Preview" in node.attrib.get("class", "").split():
-            self.parse_stack_w[-1] += nodes.Text("$$")
-            return None
-        return nodes.paragraph()
-
-    def depart_div(self, node, _):
-        if "MathJax_Preview" in node.attrib.get("class", "").split():
-            self.parse_stack_w[-1] += nodes.Text("$$")
-            return None
+            return IGNORE_ALL_CHILDREN
+        return None
 
     def visit_h1(self, node):
         return self.start_new_section(1, node)
@@ -348,12 +349,11 @@ class MarkdownParser(parsers.Parser):
         return nodes.block_quote()
 
     def visit_table(self, node):
-        # pymarkdown does not generate these but docutils expects them
+        # docutils html writer crashes without tgroup/colspec
         table = nodes.table()
         table['classes'] = ["colwidths-auto"]
         self.append_node(table)
         tgroup = nodes.tgroup()
-        # the below hack is needed because docutils expects colspecs
         # ideally we would find the actual number of columns of the table but
         # i couldn't be bothered writing the code
         for _ in len(node.iter()):
