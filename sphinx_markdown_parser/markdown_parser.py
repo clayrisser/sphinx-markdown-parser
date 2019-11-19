@@ -353,7 +353,7 @@ class MarkdownParser(parsers.Parser):
         # the below hack is needed because docutils expects colspecs
         # ideally we would find the actual number of columns of the table but
         # i couldn't be bothered writing the code
-        for _ in len(node.iter()):
+        for _ in node.iter():
             tgroup += nodes.colspec()
         tgroup['stub'] = None
         return tgroup
