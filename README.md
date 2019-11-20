@@ -14,6 +14,19 @@ Contents
 * [API Reference](api_ref.md)
 * [AutoStructify Component](auto_structify.md)
 
+## Parsers
+
+The `MarkdownParser` is the recommonend parser for the following reasons.
+* It has more features such as tables and extensions
+* It is the parser officially supported by this project
+
+If you insist on using the `CommonMarkParser` I recommnend using [recommonmark](https://github.com/readthedocs/recommonmark) directly since we do not officially support that parser.
+
+| **Parser**         | **Source**                                  |
+| ------------------ | ------------------------------------------- |
+| `MarkdownParser`   | https://github.com/Python-Markdown/markdown |
+| `CommonMarkParser` | https://github.com/readthedocs/recommonmark |
+
 ## Getting Started
 
 To use `sphinx-markdown-parser` inside of Sphinx only takes 2 steps.
