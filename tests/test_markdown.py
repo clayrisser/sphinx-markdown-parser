@@ -11,10 +11,23 @@ from docutils.core import publish_parts
 from commonmark import Parser
 from sphinx_markdown_parser.parser import MarkdownParser
 
+
+DEFAULT_TEST_CONFIG = {
+    'extensions': [
+        'extra',
+        'nl2br',
+        'sane_lists',
+        'smarty',
+        'toc',
+        'wikilinks',
+    ]
+}
+
+
 class TestParsing(unittest.TestCase):
 
     def assertParses(self, source, expected, alt=False):  # noqa
-        parser = MarkdownParser()
+        parser = MarkdownParser(config=DEFAULT_TEST_CONFIG)
         parser.parse(dedent(source), new_document('<string>'))
         self.assertMultiLineEqual(
             dedent(expected).lstrip(),
@@ -42,6 +55,12 @@ class TestParsing(unittest.TestCase):
             [google](https://www.google.com)
 
             ## [B](#b)
+
+            ### level 3
+
+            #### level 4
+
+            ## level 2
 
             ![ello](some-image.img)
 
@@ -92,6 +111,15 @@ class TestParsing(unittest.TestCase):
                   <title>
                     <reference refuri="#b">B</reference>
                   </title>
+                  <section ids="level-3" names="level-3">
+                    <title>level 3</title>
+                    <section ids="level-4" names="level-4">
+                      <title>level 4</title>
+                    </section>
+                  </section>
+                </section>
+                <section ids="level-2" names="level-2">
+                  <title>level 2</title>
                   <paragraph>
                     <image uri="some-image.img">ello</image>
                   </paragraph>
@@ -121,19 +149,23 @@ class TestParsing(unittest.TestCase):
                     <raw format="html" xml:space="preserve">&lt;strong attr=&quot;some-attr&quot;&gt;special&lt;/strong&gt;</raw>
                   </paragraph>
                   <transition/>
-                  <table>
-                    <thead>
-                      <row>
-                        <entry>one</entry>
-                        <entry>two</entry>
-                      </row>
-                    </thead>
-                    <tbody>
-                      <row>
-                        <entry>ONE</entry>
-                        <entry>TWO</entry>
-                      </row>
-                    </tbody>
+                  <table classes="colwidths-auto">
+                    <tgroup stub="None">
+                      <colspec/>
+                      <colspec/>
+                      <thead>
+                        <row>
+                          <entry>one</entry>
+                          <entry>two</entry>
+                        </row>
+                      </thead>
+                      <tbody>
+                        <row>
+                          <entry>ONE</entry>
+                          <entry>TWO</entry>
+                        </row>
+                      </tbody>
+                    </tgroup>
                   </table>
                   <raw format="html" xml:space="preserve">&lt;video hello=&quot;world&quot;&gt;&lt;boo&gt;howdy&lt;/boo&gt;&lt;/video&gt;</raw>
                   <paragraph>wow</paragraph>
