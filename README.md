@@ -14,6 +14,10 @@ Contents
 * [API Reference](api_ref.md)
 * [AutoStructify Component](auto_structify.md)
 
+## Recommended Projects
+
+* [sphinx-markdown-builder](https://github.com/codejamninja/sphinx-markdown-builder) - sphinx builder that outputs markdown files
+
 ## Parsers
 
 The `MarkdownParser` is the recommonend parser for the following reasons.
