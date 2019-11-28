@@ -3,6 +3,7 @@
 from collections import OrderedDict
 
 from docutils import parsers, nodes
+import html
 import markdown
 from markdown import util
 
@@ -228,12 +229,14 @@ class MarkdownParser(parsers.Parser):
         elif text1.startswith("<pre><code") and text1.endswith("</code></pre>"):
             text = text1[10:-13]
             if text.startswith(">"):
-                content = nodes.literal_block(text[1:], text[1:])
+                text = html.unescape(text[1:])
+                content = nodes.literal_block(text, text)
             elif text.startswith(' class="'):
                 text = text[8:]
                 langi = text.find('"')
                 lang = text[:langi]
                 text = text[langi+2:].rstrip("\n")
+                text = html.unescape(text)
                 content = nodes.literal_block(text, text, language=lang)
             else:
                 self.document.reporter.warning(
@@ -416,6 +419,8 @@ class MarkdownParser(parsers.Parser):
 
     def visit_code(self, node):
         parent = self.parse_stack_r[-1]
+        if node.text:
+            node.text = html.unescape(node.text)
         if len(parent) == 1 and parent.tag == "p" and not parent.text:
             x = self.pop_node()
             assert isinstance(x, nodes.paragraph)
@@ -432,4 +437,6 @@ class MarkdownParser(parsers.Parser):
             return nodes.literal()
 
     def visit_pre(self, node):
+        if node.text:
+            node.text = html.unescape(node.text)
         return nodes.literal_block()
