@@ -15,6 +15,30 @@ Contents
 -  `API Reference <api_ref.md>`__
 -  `AutoStructify Component <auto_structify.md>`__
 
+Recommended Projects
+--------------------
+
+-  `sphinx-markdown-builder <https://github.com/codejamninja/sphinx-markdown-builder>`__
+   - sphinx builder that outputs markdown files
+
+Parsers
+-------
+
+The ``MarkdownParser`` is the recommonend parser for the following
+reasons. \* It has more features such as tables and extensions \* It is
+the parser officially supported by this project
+
+If you insist on using the ``CommonMarkParser`` I recommnend using
+`recommonmark <https://github.com/readthedocs/recommonmark>`__ directly
+since we do not officially support that parser.
+
+==================== ===========================================
+**Parser**           **Source**
+==================== ===========================================
+``MarkdownParser``   https://github.com/Python-Markdown/markdown
+``CommonMarkParser`` https://github.com/readthedocs/recommonmark
+==================== ===========================================
+
 Getting Started
 ---------------
 
