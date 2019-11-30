@@ -3,6 +3,7 @@
 from collections import OrderedDict
 
 from docutils import parsers, nodes
+import html
 import markdown
 from markdown import util
 
@@ -168,6 +169,14 @@ class MarkdownParser(parsers.Parser):
             return
         # shortcut for pushing one item so visitors don't have to
         if res is not None and res != self.parse_stack_w[-1]:
+            # add any leftover attributes to the docutils node.
+            # this is a slight hack to make attr_list "sort of work" - however
+            # docutils interprets attributes in its own way, not as html
+            # http://docutils.sourceforge.net/docs/ref/rst/directives.html
+            # e.g. style="" usually doesn't work, but some others do by chance
+            for (k, v) in node.attrib.items():
+                if k not in res:
+                    res[k] = v
             self.append_node(res)
         # add text
         if node.text and node.text.strip():
@@ -220,12 +229,14 @@ class MarkdownParser(parsers.Parser):
         elif text1.startswith("<pre><code") and text1.endswith("</code></pre>"):
             text = text1[10:-13]
             if text.startswith(">"):
-                content = nodes.literal_block(text[1:], text[1:])
+                text = html.unescape(text[1:])
+                content = nodes.literal_block(text, text)
             elif text.startswith(' class="'):
                 text = text[8:]
                 langi = text.find('"')
                 lang = text[:langi]
                 text = text[langi+2:].rstrip("\n")
+                text = html.unescape(text)
                 content = nodes.literal_block(text, text, language=lang)
             else:
                 self.document.reporter.warning(
@@ -280,7 +291,8 @@ class MarkdownParser(parsers.Parser):
         return nodes.title()
 
     def visit_script(self, node):
-        if node.get("type", "").split(";")[0] == "math/tex":
+        if node.attrib.get("type", "").split(";")[0] == "math/tex":
+            node.attrib.pop("type")
             parent = self.parse_stack_r[-1]
             if parent.tag == "span":
                 return nodes.math()
@@ -301,6 +313,7 @@ class MarkdownParser(parsers.Parser):
 
     def visit_span(self, node):
         if "MathJax_Preview" in node.attrib.get("class", "").split():
+            node.attrib.pop("class")
             return IGNORE_ALL_CHILDREN
         return None
 
@@ -309,6 +322,7 @@ class MarkdownParser(parsers.Parser):
             # top-level, ignore
             return None
         if "MathJax_Preview" in node.attrib.get("class", "").split():
+            node.attrib.pop("class")
             return IGNORE_ALL_CHILDREN
         return None
 
@@ -341,7 +355,7 @@ class MarkdownParser(parsers.Parser):
 
     def visit_a(self, node):
         reference = nodes.reference()
-        href = node.attrib.get('href', '')
+        href = node.attrib.pop('href', '')
         if href.endswith(".md"):
             href = href[:-3] + ".html"
         reference['refuri'] = href
@@ -364,8 +378,8 @@ class MarkdownParser(parsers.Parser):
 
     def visit_img(self, node):
         image = nodes.image()
-        image['uri'] = node.attrib.get('src', '')
-        alt = node.attrib.get('alt', '')
+        image['uri'] = node.attrib.pop('src', '')
+        alt = node.attrib.pop('alt', '')
         if alt:
             image += nodes.Text(alt)
         return image
@@ -405,6 +419,8 @@ class MarkdownParser(parsers.Parser):
 
     def visit_code(self, node):
         parent = self.parse_stack_r[-1]
+        if node.text:
+            node.text = html.unescape(node.text)
         if len(parent) == 1 and parent.tag == "p" and not parent.text:
             x = self.pop_node()
             assert isinstance(x, nodes.paragraph)
@@ -412,12 +428,15 @@ class MarkdownParser(parsers.Parser):
             # note: this isn't yet activated because fenced_code extension
             # outputs raw html block, not a regular markdown ast tree. instead
             # what is actually run is the hacky workaround in append_text
-            lang = node.get("class", "")
+            lang = node.attrib.get("class", "")
             if lang:
+                node.attrib.pop("class")
                 block["language"] = lang
             return block
         else:
             return nodes.literal()
 
     def visit_pre(self, node):
+        if node.text:
+            node.text = html.unescape(node.text)
         return nodes.literal_block()

@@ -76,6 +76,12 @@ class TestParsing(unittest.TestCase):
 
             <strong attr="some-attr">special</strong>
 
+            code `<> &amp;` code
+
+            ```
+            <> &amp;
+            ```
+
             ---
 
             | one | two |
@@ -90,10 +96,10 @@ class TestParsing(unittest.TestCase):
             <?xml version="1.0" ?>
             <document source="&lt;string&gt;">
               <section ids="i" names="i">
-                <title>I</title>
+                <title id="i">I</title>
                 <literal_block language="py" xml:space="preserve">hello = 'world'</literal_block>
                 <section ids="a" names="a">
-                  <title>
+                  <title id="a">
                     <emphasis>
                       <reference refuri="https://google.com">
                         <strong>A</strong>
@@ -108,18 +114,18 @@ class TestParsing(unittest.TestCase):
                   </paragraph>
                 </section>
                 <section ids="b" names="b">
-                  <title>
+                  <title id="b">
                     <reference refuri="#b">B</reference>
                   </title>
                   <section ids="level-3" names="level-3">
-                    <title>level 3</title>
+                    <title id="level-3">level 3</title>
                     <section ids="level-4" names="level-4">
-                      <title>level 4</title>
+                      <title id="level-4">level 4</title>
                     </section>
                   </section>
                 </section>
                 <section ids="level-2" names="level-2">
-                  <title>level 2</title>
+                  <title id="level-2">level 2</title>
                   <paragraph>
                     <image uri="some-image.img">ello</image>
                   </paragraph>
@@ -148,6 +154,13 @@ class TestParsing(unittest.TestCase):
                   <paragraph>
                     <raw format="html" xml:space="preserve">&lt;strong attr=&quot;some-attr&quot;&gt;special&lt;/strong&gt;</raw>
                   </paragraph>
+                  <paragraph>
+                    code 
+                    <literal>&lt;&gt; &amp;amp;</literal>
+                     code
+                  </paragraph>
+                  <literal_block xml:space="preserve">&lt;&gt; &amp;amp;
+            </literal_block>
                   <transition/>
                   <table classes="colwidths-auto">
                     <tgroup stub="None">

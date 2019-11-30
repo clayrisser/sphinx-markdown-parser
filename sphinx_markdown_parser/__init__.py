@@ -1,6 +1,6 @@
 """docutils markdown parser"""
 
-__version__ = '0.2.1'
+__version__ = '0.2.2'
 
 def setup(app):
     """Initialize Sphinx extension."""
