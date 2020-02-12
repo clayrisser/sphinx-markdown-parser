@@ -54,6 +54,8 @@ class TestParsing(unittest.TestCase):
 
             [google](https://www.google.com)
 
+            [local page](page.md#heading)
+
             ## [B](#b)
 
             ### level 3
@@ -111,6 +113,9 @@ class TestParsing(unittest.TestCase):
                   </block_quote>
                   <paragraph>
                     <reference refuri="https://www.google.com">google</reference>
+                  </paragraph>
+                  <paragraph>
+                    <reference refuri="page.html#heading">local page</reference>
                   </paragraph>
                 </section>
                 <section ids="b" names="b">

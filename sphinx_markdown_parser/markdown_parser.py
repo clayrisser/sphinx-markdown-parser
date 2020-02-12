@@ -6,6 +6,7 @@ from docutils import parsers, nodes
 import html
 import markdown
 from markdown import util
+import urllib.parse
 
 from pydash import _
 import re
@@ -356,8 +357,12 @@ class MarkdownParser(parsers.Parser):
     def visit_a(self, node):
         reference = nodes.reference()
         href = node.attrib.pop('href', '')
-        if href.endswith(".md"):
-            href = href[:-3] + ".html"
+        try:
+            r = urllib.parse.urlparse(href)
+            if r.path.endswith(".md"):
+              href = urllib.parse.urlunparse(r._replace(path = r.path[:-3] + ".html"))
+        except:
+            pass
         reference['refuri'] = href
         return reference
 
