@@ -214,7 +214,7 @@ class CustomExtensionTests(SphinxIntegrationTests):
 
         self.assertIn(
             ('<div class="contents topic" id="contents">\n'
-             '<p class="topic-title first">Contents</p>\n'
+             '<p class="topic-title">Contents</p>\n'
              '<ul class="simple">\n'
              '<li><p><a class="reference internal" href="#header" id="id1">Header</a></p>\n<ul>\n'
              '<li><p><a class="reference internal" href="#header-2" id="id2">Header 2</a></p></li>\n'
