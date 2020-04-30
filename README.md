@@ -11,8 +11,8 @@ for tables have been added to this extension.
 Contents
 --------
 
-* [API Reference](api_ref.md)
-* [AutoStructify Component](auto_structify.md)
+* [API Reference](docs/api_ref.md)
+* [AutoStructify Component](docs/auto_structify.md)
 
 ## Recommended Projects
 
@@ -158,12 +158,12 @@ leverages the python CommonMark implementation.
 It was originally created by [Luca Barbato][lu-zero],
 and is now maintained in the Read the Docs (rtfd) GitHub organization.
 
-[cm]: http://commonmark.org
+[cm]: https://commonmark.org
 [pcm]: https://github.com/rtfd/CommonMark-py
 [rmd]: https://github.com/sgenoud/remarkdown
-[prs]: https://github.com/python-parsley/parsley
+[prs]: https://github.com/pyga/parsley
 [lu-zero]: https://github.com/lu-zero
 
-[dc]: http://docutils.sourceforge.net/docs/ref/doctree.html
+[dc]: https://docutils.sourceforge.io/docs/ref/doctree.html
 [sphinx-issue]: https://bitbucket.org/birkenfeld/sphinx/issue/825/markdown-capable-sphinx
-[so-question]: http://stackoverflow.com/questions/2471804/using-sphinx-with-markdown-instead-of-rst
+[so-question]: https://stackoverflow.com/questions/2471804/using-sphinx-with-markdown-instead-of-rst
