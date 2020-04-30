@@ -1,6 +1,5 @@
-import os
 import io
-import sys
+import os
 import shutil
 import unittest
 from contextlib import contextmanager
@@ -191,6 +190,7 @@ class IndentedCodeTests(unittest.TestCase):
             '<div class="highlight">'
         )
 
+
 class NestedHeaderBlock(unittest.TestCase):
 
     def test_integration(self):
@@ -199,6 +199,7 @@ class NestedHeaderBlock(unittest.TestCase):
             '_build/text/index.html',
             '<h1>'
         )
+
 
 class CustomExtensionTests(SphinxIntegrationTests):
 
@@ -220,3 +221,13 @@ class CustomExtensionTests(SphinxIntegrationTests):
              '</ul>\n</li>\n</ul>'),
             output
             )
+
+
+class InlineMathTests(SphinxIntegrationTests):
+    build_path = 'tests/sphinx_inline_math'
+
+    def test_integration(self):
+        output = self.read_file('index.html')
+        self.assertIn('>\\( E = mc^2 \\)<', output)
+        self.assertIn('>$$<', output)
+        self.assertIn('>$<', output)
