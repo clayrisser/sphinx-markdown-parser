@@ -10,9 +10,9 @@ copyright = u'2015, rtfd'
 author = u'rtfd'
 version = '0.1'
 release = '0.1'
+highlight_language = 'python'
 language = None
 exclude_patterns = ['_build']
-highlight_language = 'python'
 pygments_style = 'sphinx'
 todo_include_todos = False
 html_theme = 'alabaster'
@@ -21,10 +21,9 @@ htmlhelp_basename = 'sphinxproj'
 
 
 def setup(app):
-    app.add_source_suffix('.markdown', 'markdown')
+    app.add_source_suffix('.md', 'markdown')
     app.add_source_parser(CommonMarkParser)
     app.add_config_value('markdown_parser_config', {
-        'enable_eval_rst': True,
-        'commonmark_suffixes': ['.markdown'],
+        'enable_inline_math': True,
     }, True)
     app.add_transform(AutoStructify)

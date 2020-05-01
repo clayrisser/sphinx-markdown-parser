@@ -4,12 +4,13 @@ import os
 import re
 
 from docutils import nodes, transforms
-from docutils.statemachine import StringList
 from docutils.parsers.rst import Parser
+from docutils.statemachine import StringList
 from docutils.utils import new_document
 from sphinx import addnodes
 
 from .states import DummyStateMachine
+
 
 class AutoStructify(transforms.Transform):
     """Automatically try to transform blocks to sphinx directives.
@@ -207,13 +208,16 @@ class AutoStructify(transforms.Transform):
         if not isinstance(content, nodes.Text):
             return None
         content = content.astext().strip()
-        if content.startswith('$') and content.endswith('$'):
+        if content.startswith('$') and content.endswith('$') and len(content) > 2:
             if not self.config['enable_inline_math']:
                 return None
             content = content[1:-1]
             self.state_machine.reset(
                 self.document, node.parent, self.current_level
             )
+            # In sphinx 1.8+, the parser has migrated to docutils math role,
+            # which expects containing "`" in the rst file.
+            content = '`%s`' % content
             return self.state_machine.run_role('math', content=content)
         else:
             return None
@@ -258,7 +262,7 @@ class AutoStructify(transforms.Transform):
                 )
                 return node.children[:]
         else:
-            match = re.search('[ ]?[\w_-]+::.*', language)
+            match = re.search(r'[ ]?[\w_-]+::.*', language)
             if match:
                 parser = Parser()
                 new_doc = new_document(None, self.document.settings)
