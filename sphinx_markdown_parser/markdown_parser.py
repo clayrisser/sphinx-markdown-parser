@@ -161,6 +161,8 @@ class MarkdownParser(parsers.Parser):
         return False
 
     def walk_markdown_ast(self, node):
+        if isinstance(node, str):
+            return
         n = node.tag.lower()
         r_depth = len(self.parse_stack_r)
         self.parse_stack_w_old = len(self.parse_stack_w)

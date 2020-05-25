@@ -22,6 +22,16 @@ class TestParsing(unittest.TestCase):
             dedent(parser.document.asdom().toprettyxml(indent='  ')),
         )
 
+    def test_empty(self):
+        self.assertParses(
+            """
+            """,
+            """
+            <?xml version="1.0" ?>
+            <document source="&lt;string&gt;"/>
+            """
+        )
+
     def test_heading(self):
         self.assertParses(
             """
