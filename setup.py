@@ -1,18 +1,12 @@
 from codecs import open
 from os import path
 from setuptools import setup, find_packages
-from subprocess import check_output
 import sphinx_markdown_parser
 
 here = path.abspath(path.dirname(__file__))
 
-check_output(
-    'pandoc --from=markdown --to=rst --output=' +
-    path.join(here, 'README.rst') + ' ' + path.join(here, 'README.md'),
-    shell=True
-)
 
-with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
+with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 install_requires = list()
@@ -29,6 +23,7 @@ setup(
         'inside of docutils & sphinx projects.'
     ),
     long_description=long_description,
+    long_description_content_type="text/markdown",
     url='https://github.com/codejamninja/sphinx-markdown-parser',
     author='Jam Risser',
     author_email='jam@codejam.ninja',
