@@ -419,10 +419,12 @@ class MarkdownParser(parsers.Parser):
         return nodes.row()
 
     def visit_th(self, node):
-        return nodes.entry()
+        self.append_node(nodes.entry())
+        return nodes.paragraph()
 
     def visit_td(self, node):
-        return nodes.entry()
+        self.append_node(nodes.entry())
+        return nodes.paragraph()
 
     def visit_code(self, node):
         parent = self.parse_stack_r[-1]
