@@ -173,14 +173,22 @@ class TestParsing(unittest.TestCase):
                       <colspec/>
                       <thead>
                         <row>
-                          <entry>one</entry>
-                          <entry>two</entry>
+                          <entry>
+                            <paragraph>one</paragraph>
+                          </entry>
+                          <entry>
+                            <paragraph>two</paragraph>
+                          </entry>
                         </row>
                       </thead>
                       <tbody>
                         <row>
-                          <entry>ONE</entry>
-                          <entry>TWO</entry>
+                          <entry>
+                            <paragraph>ONE</paragraph>
+                          </entry>
+                          <entry>
+                            <paragraph>TWO</paragraph>
+                          </entry>
                         </row>
                       </tbody>
                     </tgroup>
