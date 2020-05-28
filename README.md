@@ -86,6 +86,14 @@ def setup(app):
         'enable_math': True,
     }, True)
 ```
+In order to use reStructuredText in Markdown (for `enable_eval_rst` to work properly), you must add AutoStructify in `conf.py`
+```
+# At top on conf.py
+from sphinx_markdown_parser.transform import AutoStructify
+
+# in setup function after configuration of the parser
+app.add_transform(AutoStructify)
+```
 
 This allows you to write both `.md` and `.rst` files inside of the same project.
 
