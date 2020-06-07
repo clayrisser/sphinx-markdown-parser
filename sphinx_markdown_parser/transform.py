@@ -11,7 +11,6 @@ from sphinx import addnodes
 
 from .states import DummyStateMachine
 
-
 class AutoStructify(transforms.Transform):
     """Automatically try to transform blocks to sphinx directives.
 
@@ -39,6 +38,8 @@ class AutoStructify(transforms.Transform):
     suffix_set = set(['md', 'rst'])
 
     default_config = {
+        'auto_toc_tree_maxdepth': 1,
+        'auto_toc_tree_numbered': None,
         'auto_toc_tree_section': None,
         'commonmark_suffixes': ['.md'],
         'enable_auto_doc_ref': False,
@@ -125,6 +126,8 @@ class AutoStructify(transforms.Transform):
         """
         if not self.config['enable_auto_toc_tree']:
             return None
+        maxdepth = self.config.get('auto_toc_tree_maxdepth', 1)
+        numbered = self.config.get('auto_toc_tree_numbered', None)
         # when auto_toc_tree_section is set
         # only auto generate toctree under the specified section title
         sec = self.config['auto_toc_tree_section']
@@ -147,11 +150,12 @@ class AutoStructify(transforms.Transform):
             if title.astext().strip() != sec:
                 return None
 
-        numbered = None
-        if isinstance(node, nodes.bullet_list):
+        if numbered is not None:
+            pass
+        elif isinstance(node, nodes.bullet_list):
             numbered = 0
         elif isinstance(node, nodes.enumerated_list):
-            numbered = 1
+            numbered = 999
 
         if numbered is None:
             return None
@@ -168,10 +172,18 @@ class AutoStructify(transforms.Transform):
             ref = par.children[0]
             if isinstance(ref, addnodes.pending_xref):
                 ref = ref.children[0]
-            if not isinstance(ref, nodes.reference):
+            if isinstance(ref, nodes.Text):
+                text = ref.astext()
+                title, uri, docpath = text, text, None
+            elif isinstance(ref, nodes.reference):
+                # TODO check that this can't happen and, if so, get rid of
+                #      parse_ref()
+                self.reporter.warning('AutoStructify unexpected reference '
+                                      '%r' % ref)
+                title, uri, docpath = self.parse_ref(ref)
+            else:
                 return None
-            title, uri, docpath = self.parse_ref(ref)
-            if title is None or uri.startswith('#'):
+            if uri.startswith('#'):
                 return None
             if docpath:
                 refs.append((title, docpath))
@@ -183,10 +195,11 @@ class AutoStructify(transforms.Transform):
         return self.state_machine.run_directive(
             'toctree',
             options={
-                'maxdepth': 1,
+                'caption': sec,
+                'maxdepth': maxdepth,
                 'numbered': numbered
             },
-            content=['%s <%s>' % (k, v) for k, v in refs]
+            content=[v for _, v in refs]
         )
 
     def auto_inline_code(self, node):
