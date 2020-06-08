@@ -6,14 +6,11 @@ from docutils import parsers, nodes
 import html
 import markdown
 from markdown import util
-import os.path
 import urllib.parse
 
 from pydash import _
 import re
 import yaml
-
-from sphinx import addnodes
 
 __all__ = ['MarkdownParser']
 
@@ -366,43 +363,15 @@ class MarkdownParser(parsers.Parser):
     def visit_br(self, node):
         return nodes.Text('\n')
 
-    # note: logic is based on CommonMarkParser.visit_link()
     def visit_a(self, node):
         reference = nodes.reference()
         href = node.attrib.pop('href', '')
-        url_check = urllib.parse.urlparse(href)
-        if not url_check.scheme and not url_check.fragment:
-            # remove .md or .markdown extension
-            href_root, href_ext = os.path.splitext(href)
-            if href_ext in {'.md', '.markdown'}:
-                href = href_root
-
-            # remove leading '~'; it causes link text to be last component only
-            last_only = href.startswith('~')
-            if last_only:
-                href = href[1:]
-
-            # always add an 'any' reference
-            reference = addnodes.pending_xref(reftarget=href, reftype='any',
-                                              refdomain=None, refexplicit=True,
-                                              refwarn=True)
-
-            # generate default link text
-            text = re.sub(r'.+\.', '', href) if last_only else href
-
-            # add text if none was supplied, so can use [](url) to get ReST
-            # link behaviour
-            def adjust_text(node_):
-                node_text = (node_.text or '').strip()
-                if not node_text:
-                    node_.text = text
-
-            if not list(node):
-                adjust_text(node)
-            else:
-                # note: have to use ` ` (with a space) to get code style
-                adjust_text(list(node)[0])
-
+        try:
+            r = urllib.parse.urlparse(href)
+            if r.path.endswith(".md"):
+              href = urllib.parse.urlunparse(r._replace(path = r.path[:-3] + ".html"))
+        except:
+            pass
         reference['refuri'] = href
         return reference
 
