@@ -26,10 +26,10 @@ The `MarkdownParser` is the recommonend parser for the following reasons.
 
 If you insist on using the `CommonMarkParser` I recommnend using [recommonmark](https://github.com/readthedocs/recommonmark) directly since we do not officially support that parser.
 
-| **Parser**         | **Source**                                  |
-| ------------------ | ------------------------------------------- |
-| `MarkdownParser`   | https://github.com/Python-Markdown/markdown |
-| `CommonMarkParser` | https://github.com/readthedocs/recommonmark |
+| **Parser**         | **Underlying Library**                       |
+| ------------------ | -------------------------------------------- |
+| `MarkdownParser`   | https://github.com/Python-Markdown/markdown  |
+| `CommonMarkParser` | https://github.com/readthedocs/commonmark.py |
 
 ## Getting Started
 
@@ -71,8 +71,8 @@ def setup(app):
         ],
     }, True)
 
-# for CommonMarkParser
-from recommonmark.parser import CommonMarkParser
+# for CommonMarkParser (please see note above!)
+from sphinx_markdown_parser.parser import CommonMarkParser
 
 def setup(app):
     app.add_source_suffix('.md', 'markdown')
@@ -150,15 +150,9 @@ For instance [this issue][sphinx-issue] and [this StackOverflow
 question][so-question] show that there is an interest in allowing `docutils`
 to use markdown as an alternative syntax.
 
-## Why another bridge to docutils?
-
-recommonmark uses the [python implementation][pcm] of [CommonMark][cm] while
-[remarkdown][rmd] implements a stand-alone parser leveraging [parsley][prs].
-
-Both output a [`docutils` document tree][dc] and provide scripts
-that leverage `docutils` for generation of different types of documents.
-
 ## Acknowledgement
+
+sphinx-markdown-parser is based on [recommonmark][rcm].
 
 recommonmark is mainly derived from [remarkdown][rmd] by Steve Genoud and
 leverages the python CommonMark implementation.
@@ -168,6 +162,7 @@ and is now maintained in the Read the Docs (rtfd) GitHub organization.
 
 [cm]: https://commonmark.org
 [pcm]: https://github.com/rtfd/CommonMark-py
+[rcm]: https://github.com/readthedocs/recommonmark
 [rmd]: https://github.com/sgenoud/remarkdown
 [prs]: https://github.com/pyga/parsley
 [lu-zero]: https://github.com/lu-zero
