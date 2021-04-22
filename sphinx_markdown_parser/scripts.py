@@ -15,61 +15,61 @@ except ImportError:
     pass
 
 from docutils.core import publish_cmdline, default_description
-from recommonmark.parser import CommonMarkParser
+from sphinx_markdown_parser.parser import MarkdownParser
 
-def cm2html():
+def md2html():
     description = (
         'Generate html document from markdown sources. ' + default_description
     )
     publish_cmdline(
-        writer_name='html', parser=CommonMarkParser(), description=description
+        writer_name='html', parser=MarkdownParser(), description=description
     )
 
-def cm2man():
+def md2man():
     description = (
         'Generate a manpage from markdown sources. ' + default_description
     )
     publish_cmdline(
         writer_name='manpage',
-        parser=CommonMarkParser(),
+        parser=MarkdownParser(),
         description=description
     )
 
-def cm2xml():
+def md2xml():
     description = (
         'Generate XML document from markdown sources. ' + default_description
     )
     publish_cmdline(
-        writer_name='xml', parser=CommonMarkParser(), description=description
+        writer_name='xml', parser=MarkdownParser(), description=description
     )
 
-def cm2pseudoxml():
+def md2pseudoxml():
     description = (
         'Generate pseudo-XML document from markdown sources. ' +
         default_description
     )
     publish_cmdline(
         writer_name='pseudoxml',
-        parser=CommonMarkParser(),
+        parser=MarkdownParser(),
         description=description
     )
 
-def cm2latex():
+def md2latex():
     description = (
         'Generate latex document from markdown sources. ' + default_description
     )
     publish_cmdline(
         writer_name='latex',
-        parser=CommonMarkParser(),
+        parser=MarkdownParser(),
         description=description
     )
 
-def cm2xetex():
+def md2xetex():
     description = (
         'Generate xetex document from markdown sources. ' + default_description
     )
     publish_cmdline(
         writer_name='latex',
-        parser=CommonMarkParser(),
+        parser=MarkdownParser(),
         description=description
     )

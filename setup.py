@@ -45,12 +45,12 @@ setup(
     include_package_data=True,
     entry_points={
         'console_scripts': [
-            'cm2html = sphinx_markdown_parser.scripts:cm2html',
-            'cm2latex = sphinx_markdown_parser.scripts:cm2latex',
-            'cm2man = sphinx_markdown_parser.scripts:cm2man',
-            'cm2pseudoxml = sphinx_markdown_parser.scripts:cm2pseudoxml',
-            'cm2xetex = sphinx_markdown_parser.scripts:cm2xetex',
-            'cm2xml = sphinx_markdown_parser.scripts:cm2xml',
+            'md2html = sphinx_markdown_parser.scripts:md2html',
+            'md2latex = sphinx_markdown_parser.scripts:md2latex',
+            'md2man = sphinx_markdown_parser.scripts:md2man',
+            'md2pseudoxml = sphinx_markdown_parser.scripts:md2pseudoxml',
+            'md2xetex = sphinx_markdown_parser.scripts:md2xetex',
+            'md2xml = sphinx_markdown_parser.scripts:md2xml',
         ]
     }
 )
