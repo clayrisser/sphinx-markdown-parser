@@ -5,7 +5,6 @@ from collections import OrderedDict
 from docutils import parsers, nodes
 import html
 import markdown
-from markdown import util
 import urllib.parse
 import posixpath
 
@@ -47,7 +46,7 @@ class Markdown(markdown.Markdown):
             return ''  # a blank unicode string
 
         try:
-            source = util.text_type(source)
+            source = str(source)
         except UnicodeDecodeError as e:  # pragma: no cover
             # Customise error message while maintaining original trackback
             e.reason += '. -- Note: Markdown only accepts unicode input!'
