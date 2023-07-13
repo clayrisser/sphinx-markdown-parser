@@ -18,6 +18,8 @@ Contents
 
 * [sphinx-markdown-builder](https://github.com/codejamninja/sphinx-markdown-builder) - sphinx builder that outputs markdown files
 
+
+![](assets/sphinx-markdown-builder.png)
 ## Parsers
 
 The `MarkdownParser` is the recommonend parser for the following reasons.
