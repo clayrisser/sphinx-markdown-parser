@@ -11,6 +11,8 @@ for tables have been added to this extension.
 Contents
 --------
 
+![](assets/sphinx-markdown-parser.png)
+
 * [API Reference](docs/api_ref.md)
 * [AutoStructify Component](docs/auto_structify.md)
 
@@ -19,7 +21,7 @@ Contents
 * [sphinx-markdown-builder](https://github.com/codejamninja/sphinx-markdown-builder) - sphinx builder that outputs markdown files
 
 
-![](assets/sphinx-markdown-builder.png)
+
 ## Parsers
 
 The `MarkdownParser` is the recommonend parser for the following reasons.
