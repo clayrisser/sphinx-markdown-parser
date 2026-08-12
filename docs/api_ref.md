@@ -1,21 +1,20 @@
 API Reference
 =============
-This document is for developers of recommonmark, it contans the API functions
+This document is for developers of sphinx-markdown-parser, it contains the API functions
 
-
-CommonMark Parser Component
-----------------
+Markdown Parser Component
+-------------------------
 ```eval_rst
-.. autoclass:: recommonmark.parser.CommonMarkParser
+.. autoclass:: sphinx_markdown_parser.parser.MarkdownParser
     :members:
     :show-inheritance:
 
 ```
 
-Markdown Parser Component
-----------------
+CommonMark Parser Component
+---------------------------
 ```eval_rst
-.. autoclass:: recommonmark.parser.MarkdownParser
+.. autoclass:: sphinx_markdown_parser.parser.CommonMarkParser
     :members:
     :show-inheritance:
 
@@ -24,7 +23,7 @@ Markdown Parser Component
 Dummy State Machine
 -------------------
 ```eval_rst
-.. autoclass:: recommonmark.states.DummyStateMachine
+.. autoclass:: sphinx_markdown_parser.states.DummyStateMachine
     :members:
     :show-inheritance:
 
@@ -34,7 +33,7 @@ Dummy State Machine
 AutoStructify Transformer
 -------------------------
 ```eval_rst
-.. autoclass:: recommonmark.transform.AutoStructify
+.. autoclass:: sphinx_markdown_parser.transform.AutoStructify
     :members:
     :show-inheritance:
 

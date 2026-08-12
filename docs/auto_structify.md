@@ -1,23 +1,23 @@
 AutoStructify Component
 =======================
-AutoStructify is a component in recommonmark that takes a parsed docutil AST by `CommonMarkParser`,
+AutoStructify is a component in sphinx-markdown-parser that takes a parsed docutil AST by `CommonMarkParser`,
 and transform it to another AST that introduces some of more. This enables additional features
-of recommonmark syntax, to introduce more structure into the final generated document.
+of sphinx-markdown-parser syntax, to introduce more structure into the final generated document.
 
 
 Configuring AutoStructify
 -------------------------
 The behavior of AutoStructify can be configured via a dict in document setting.
 In sphinx, you can configure it by `conf.py`. The following snippet
-is what is actually used to generate this document, see full code at [conf.py](conf.py).
+is what is actually used to generate this document, see full code at
+[conf.py](https://gitlab.com/bitspur/misc/sphinx-markdown-parser/-/blob/main/docs/conf.py).
 
 ```python
-github_doc_root = 'https://github.com/rtfd/recommonmark/tree/master/doc/'
 def setup(app):
     app.add_config_value('markdown_parser_config', {
-            'url_resolver': lambda url: github_doc_root + url,
             'auto_toc_tree_section': 'Contents',
-            }, True)
+            'enable_eval_rst': True,
+            }, 'env')
     app.add_transform(AutoStructify)
 
 ```
@@ -82,8 +82,13 @@ This can usually be done by a reference by reference path. However, since the ge
 the relative path may not work in generated document site. URL resolver is introduced to solve this problem.
 
 Basically, you can define a function that maps an relative path of document to the http path that you wish to link to.
-For example, the setting  mentioned in the beginning of this document used a resolver that maps the files to github.
-So `[parser code](../recommonmark/parser.py)` will be translated into [parser code](../recommonmark/parser.py)
+For example, a resolver like the following maps the files to the repository:
+
+```python
+'url_resolver': lambda url: 'https://gitlab.com/bitspur/misc/sphinx-markdown-parser/-/blob/main/docs/' + url,
+```
+
+With that in place, `[parser code](../sphinx_markdown_parser/parser.py)` will be translated into a link to the file in the repository.
 
 Note that the reference to the internal document will not be passed to url resolver, and will be linked to the internal document pages correctly, see [Auto Doc Ref](#auto-doc-ref).
 
@@ -137,12 +142,12 @@ E = m c^2
 ```
 
 ### Embed reStructuredText
-Recommonmark also allows embedding reStructuredText syntax in the codeblocks.
+sphinx-markdown-parser also allows embedding reStructuredText syntax in the codeblocks.
 There are two styles for embedding reStructuredText. The first is enabled by `eval_rst` codeblock. The content of codeblock will be parsed as reStructuredText and insert into the document. This can be used to quickly introduce some of reStructuredText command that not yet available in markdown. For example,
 
 ````
 ```eval_rst
-.. autoclass:: recommonmark.transform.AutoStructify
+.. autoclass:: sphinx_markdown_parser.transform.AutoStructify
     :show-inheritance:
 ```
 ````
@@ -150,7 +155,7 @@ There are two styles for embedding reStructuredText. The first is enabled by `ev
 will be rendered as
 
 ```eval_rst
-.. autoclass:: recommonmark.transform.AutoStructify
+.. autoclass:: sphinx_markdown_parser.transform.AutoStructify
     :show-inheritance:
 ```
 
