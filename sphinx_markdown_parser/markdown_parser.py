@@ -1,37 +1,42 @@
-"""Docutils Markdown parser"""
+"""Docutils Markdown parser built on Python-Markdown."""
 
-from collections import OrderedDict
+from __future__ import annotations
 
-from docutils import parsers, nodes
 import html
-import markdown
-from markdown import util
-import urllib.parse
 import posixpath
-
-from pydash import _
 import re
+import urllib.parse
+
+import markdown
 import yaml
+from docutils import nodes, parsers
+from docutils.parsers import rst
 
-__all__ = ['MarkdownParser']
+__all__ = ["MarkdownParser"]
 
-TAGS_INLINE = set("""
+tags_inline = set("""
 b, big, i, small, tt
 abbr, acronym, cite, code, dfn, em, kbd, strong, samp, var
 a, bdo, br, img, map, object, q, script, span, sub, sup
 button, input, label, select, textarea
-""".replace(",","").split())
-INVALID_ANCHOR_CHARS = re.compile("[^-_:.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz]")
-MAYBE_HTML_TAG = re.compile("<([a-z]+)")
+""".replace(",", "").split())
+invalid_anchor_chars = re.compile(
+    "[^-_:.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz]"
+)
+maybe_html_tag = re.compile("<([a-z]+)")
+# Markdown >= 3.2 prefixes fenced code language classes with "language-"
+fenced_code_lang_prefix = "language-"
+
+# sentinel returned by visit_* handlers to skip a markdown subtree entirely
+ignore_all_children = object()
+
 
 def to_html_anchor(s):
     if not s:
         return s
     if not s[0].isalpha():
         s = "-" + s
-    return INVALID_ANCHOR_CHARS.sub("-", s.lower())
-
-IGNORE_ALL_CHILDREN = object()
+    return invalid_anchor_chars.sub("-", s.lower())
 
 
 class Markdown(markdown.Markdown):
@@ -41,48 +46,45 @@ class Markdown(markdown.Markdown):
         Like super.convert() but returns the parse tree instead of doing
         postprocessing.
         """
-
-        # Fixup the source text
         if not source.strip():
-            return ''  # a blank unicode string
-
-        try:
-            source = util.text_type(source)
-        except UnicodeDecodeError as e:  # pragma: no cover
-            # Customise error message while maintaining original trackback
-            e.reason += '. -- Note: Markdown only accepts unicode input!'
-            raise
+            return ""  # a blank unicode string
 
         # Split into lines and run the line preprocessors.
-        self.lines = source.split("\n")
+        self.lines = str(source).split("\n")
         for prep in self.preprocessors:
             self.lines = prep.run(self.lines)
 
         # Parse the high-level elements.
         root = self.parser.parseDocument(self.lines).getroot()
+        assert root is not None
 
         # Run the tree-processors
         for treeprocessor in self.treeprocessors:
-            newRoot = treeprocessor.run(root)
-            if newRoot is not None:
-                root = newRoot
+            new_root = treeprocessor.run(root)
+            if new_root is not None:
+                root = new_root
 
         return root
+
 
 class MarkdownParser(parsers.Parser):
     """Docutils parser for Markdown"""
 
-    supported = ('md', 'markdown')
+    supported = ("md", "markdown")
     translate_section_name = None
 
-    default_config = {
-        'extensions': []
-    }
+    # Reuse the rst parser's settings: since Sphinx builds document settings
+    # from the registered parser only, embedded reStructuredText (eval_rst
+    # blocks, directives run through AutoStructify, autodoc, ...) would
+    # otherwise miss settings it expects, such as tab_width.
+    settings_spec = rst.Parser.settings_spec
 
-    def __init__(self, config={}):
+    default_config = {"extensions": []}
+
+    def __init__(self, config=None):
         self._level_to_elem = {}
         self.config = self.default_config.copy()
-        self.config.update(config)
+        self.config.update(config or {})
 
     def parse(self, inputstring, document):
         self.document = document
@@ -93,9 +95,9 @@ class MarkdownParser(parsers.Parser):
         except AttributeError:
             pass
         self.setup_parse(inputstring, document)
-        frontmatter = self.get_frontmatter(inputstring)
+        self.append_frontmatter(self.get_frontmatter(inputstring), document)
 
-        self.md = Markdown(extensions=self.config.get('extensions'))
+        self.md = Markdown(extensions=self.config.get("extensions"))
         tree = self.md.parse(self.get_md(inputstring) + "\n")
         self.prep_raw_html()
 
@@ -109,17 +111,13 @@ class MarkdownParser(parsers.Parser):
         # to append >1 node (e.g. start_new_section) or pop a node
         self.parse_stack_w_old = 1
         self.walk_markdown_ast(tree)
-        #text = self.current_node.pformat()
-        #print("result:: ==== ")
-        #print(text[:min(len(text), text.find("<title>") + 200)])
-        #print("end result")
 
         self.finish_parse()
 
     def get_frontmatter(self, string):
         frontmatter = {}
-        frontmatter_string = ''
-        frontmatter_regex = re.findall(r'^\s*---+((\s|\S)+?)---+', string)
+        frontmatter_string = ""
+        frontmatter_regex = re.findall(r"^\s*---+((\s|\S)+?)---+", string)
         if len(frontmatter_regex) and len(frontmatter_regex[0]):
             frontmatter_string = frontmatter_regex[0][0]
         if len(frontmatter_string):
@@ -127,35 +125,51 @@ class MarkdownParser(parsers.Parser):
         return frontmatter
 
     def get_md(self, string):
-        return re.sub(r'^\s*---+(\s|\S)+?---+\n((\s|\S)*)', r'\2', string)
+        return re.sub(r"^\s*---+(\s|\S)+?---+\n((\s|\S)*)", r"\2", string)
 
-    def attrs_to_dict(self, attrs):
-        attrs_dict = {}
-        for item in attrs:
-            if len(item) == 2:
-                attrs_dict[item[0]] = item[1]
-        return attrs_dict
+    def append_frontmatter(self, frontmatter, document):
+        """Expose YAML frontmatter as a docinfo element.
+
+        Sphinx's metadata collector copies the docinfo fields into
+        ``env.metadata`` and removes them from the doctree.
+        """
+        if not isinstance(frontmatter, dict) or not frontmatter:
+            return
+        docinfo = nodes.docinfo()
+        for key, value in frontmatter.items():
+            field = nodes.field()
+            field += nodes.field_name(str(key), str(key))
+            body = nodes.field_body()
+            body += nodes.paragraph(text=str(value))
+            field += body
+            docinfo += field
+        document += docinfo
 
     def prep_raw_html(self):
-        # code adapted from markedown.core.RawHtmlPostprocessor
-        replacements = OrderedDict()
+        # code adapted from markdown.core.RawHtmlPostprocessor
+        replacements = {}
         for i in range(self.md.htmlStash.html_counter):
-            html = self.md.htmlStash.rawHtmlBlocks[i]
-            if self.isblocklevel(html):
-                replacements["<p>%s</p>" %
-                             (self.md.htmlStash.get_placeholder(i))] = \
-                    html + "\n"
-            replacements[self.md.htmlStash.get_placeholder(i)] = html
+            raw = self.md.htmlStash.rawHtmlBlocks[i]
+            if not isinstance(raw, str):
+                # md_in_html stashes etree elements instead of strings
+                raw = self.md.serializer(raw)
+            if self.isblocklevel(raw):
+                replacements["<p>%s</p>" % self.md.htmlStash.get_placeholder(i)] = (
+                    raw + "\n"
+                )
+            replacements[self.md.htmlStash.get_placeholder(i)] = raw
         self.raw_html = replacements
         if replacements:
-            self.raw_html_k = re.compile("(" + "|".join(re.escape(k) for k in self.raw_html) + ")")
+            self.raw_html_k = re.compile(
+                "(" + "|".join(re.escape(k) for k in self.raw_html) + ")"
+            )
         else:
             self.raw_html_k = None
 
-    def isblocklevel(self, html):
-        m = re.match(r'^\<\/?([^ >]+)', html)
+    def isblocklevel(self, raw):
+        m = re.match(r"^\<\/?([^ >]+)", raw)
         if m:
-            if m.group(1)[0] in ('!', '?', '@', '%'):
+            if m.group(1)[0] in ("!", "?", "@", "%"):
                 # Comment, php etc...
                 return True
             return self.md.is_block_level(m.group(1))
@@ -169,7 +183,7 @@ class MarkdownParser(parsers.Parser):
         self.parse_stack_w_old = len(self.parse_stack_w)
 
         res = self.dispatch(True, n, node)
-        if res is IGNORE_ALL_CHILDREN:
+        if res is ignore_all_children:
             return
         # shortcut for pushing one item so visitors don't have to
         if res is not None and res != self.parse_stack_w[-1]:
@@ -178,7 +192,7 @@ class MarkdownParser(parsers.Parser):
             # docutils interprets attributes in its own way, not as html
             # http://docutils.sourceforge.net/docs/ref/rst/directives.html
             # e.g. style="" usually doesn't work, but some others do by chance
-            for (k, v) in node.attrib.items():
+            for k, v in node.attrib.items():
                 if k not in res:
                     res[k] = v
             self.append_node(res)
@@ -209,15 +223,17 @@ class MarkdownParser(parsers.Parser):
     def dispatch(self, entering, n, node, *args):
         fn_prefix = "visit" if entering else "depart"
         fn_name = "{0}_{1}".format(fn_prefix, n)
-        def x(*args): return self.dispatch_default(entering, *args)
-        #if entering:
-        #    print(" " * len(self.parse_stack_r) * 2, node.tag, node.text[:40] if node.text else "")
-        return getattr(self, fn_name, x)(node, *args)
+
+        def fn_default(*args):
+            return self.dispatch_default(entering, *args)
+
+        return getattr(self, fn_name, fn_default)(node, *args)
 
     def dispatch_default(self, entering, node, *args):
         if entering:
             self.document.reporter.warning(
-                "markdown node with unknown tag: %s" % node.tag, nodes.Text(node.text))
+                "markdown node with unknown tag: %s" % node.tag, nodes.Text(node.text)
+            )
 
     def append_text(self, text):
         if not self.raw_html_k:
@@ -239,25 +255,29 @@ class MarkdownParser(parsers.Parser):
                 text = text[8:]
                 langi = text.find('"')
                 lang = text[:langi]
-                text = text[langi+2:].rstrip("\n")
+                if lang.startswith(fenced_code_lang_prefix):
+                    lang = lang[len(fenced_code_lang_prefix) :]
+                text = text[langi + 2 :].rstrip("\n")
                 text = html.unescape(text)
                 content = nodes.literal_block(text, text, language=lang)
             else:
                 self.document.reporter.warning(
-                    "aborting attempt to parse invalid raw code block", nodes.Text(text1))
-                content = nodes.raw(text1, text1, format='html')
+                    "aborting attempt to parse invalid raw code block",
+                    nodes.Text(text1),
+                )
+                content = nodes.raw(text1, text1, format="html")
             strip_p = True
 
         else:
-            tags = MAYBE_HTML_TAG.findall(text1)
+            tags = maybe_html_tag.findall(text1)
             # hacky heuristic to determine whether to strip <p> or not
-            if not all((t in TAGS_INLINE for t in tags)):
+            if not all((t in tags_inline for t in tags)):
                 strip_p = True
-            content = nodes.raw(text1, text1, format='html')
+            content = nodes.raw(text1, text1, format="html")
 
         parent = self.parse_stack_w[-1]
         if strip_p and len(parent) == 0 and isinstance(parent, nodes.paragraph):
-            x = self.pop_node()
+            self.pop_node()
         self.parse_stack_w[-1] += content
 
     def reset_w_old(self):
@@ -278,13 +298,13 @@ class MarkdownParser(parsers.Parser):
 
     def new_section(self, heading):
         section = nodes.section()
-        if heading.get('id'):
-            anchor_text = heading.get('id')
+        if heading.get("id"):
+            anchor_text = heading.get("id")
         else:
             anchor_text = "".join(heading.itertext())
         anchor = to_html_anchor(anchor_text)
-        section['ids'] = [anchor]
-        section['names'] = [anchor]
+        section["ids"] = [anchor]
+        section["names"] = [anchor]
         return section
 
     def start_new_section(self, lvl, heading):
@@ -297,8 +317,8 @@ class MarkdownParser(parsers.Parser):
         self.parse_stack_h.append(lvl)
         assert isinstance(self.parse_stack_w[-1], nodes.section)
         title = nodes.title()
-        if heading.get('class'):
-            title['classes'] = heading.get('class').split()
+        if heading.get("class"):
+            title["classes"] = heading.get("class").split()
         return title
 
     def visit_script(self, node):
@@ -315,9 +335,10 @@ class MarkdownParser(parsers.Parser):
                 return math
             else:
                 self.document.reporter.warning(
-                    "math/tex script with unknown parent: %s" % parent.tag)
+                    "math/tex script with unknown parent: %s" % parent.tag
+                )
         else:
-            return IGNORE_ALL_CHILDREN
+            return ignore_all_children
 
     def visit_p(self, node):
         return nodes.paragraph()
@@ -325,7 +346,7 @@ class MarkdownParser(parsers.Parser):
     def visit_span(self, node):
         if "MathJax_Preview" in node.attrib.get("class", "").split():
             node.attrib.pop("class")
-            return IGNORE_ALL_CHILDREN
+            return ignore_all_children
         return None
 
     def visit_div(self, node):
@@ -334,7 +355,7 @@ class MarkdownParser(parsers.Parser):
             return None
         if "MathJax_Preview" in node.attrib.get("class", "").split():
             node.attrib.pop("class")
-            return IGNORE_ALL_CHILDREN
+            return ignore_all_children
         return None
 
     def visit_h1(self, node):
@@ -362,11 +383,11 @@ class MarkdownParser(parsers.Parser):
         return nodes.emphasis()
 
     def visit_br(self, node):
-        return nodes.Text('\n')
+        return nodes.Text("\n")
 
     def visit_a(self, node):
         reference = nodes.reference()
-        href = node.attrib.pop('href', '')
+        href = node.attrib.pop("href", "")
         if href.startswith("/"):
             # resolve absolute paths against the site root; sphinx-rst does this
             docname = self.document.settings.env.path2doc(self.document.current_source)
@@ -375,10 +396,10 @@ class MarkdownParser(parsers.Parser):
         try:
             r = urllib.parse.urlparse(href)
             if r.path.endswith(".md"):
-              href = urllib.parse.urlunparse(r._replace(path = r.path[:-3] + ".html"))
-        except:
+                href = urllib.parse.urlunparse(r._replace(path=r.path[:-3] + ".html"))
+        except ValueError:
             pass
-        reference['refuri'] = href
+        reference["refuri"] = href
         return reference
 
     def visit_ol(self, node):
@@ -390,7 +411,7 @@ class MarkdownParser(parsers.Parser):
     def visit_li(self, node):
         ch = list(node)
         # extra "paragraph" is needed to avoid breaking docutils assumptions
-        if not ch or ch[0].tag in TAGS_INLINE:
+        if not ch or ch[0].tag in tags_inline:
             self.append_node(nodes.list_item())
             return nodes.paragraph()
         else:
@@ -398,8 +419,8 @@ class MarkdownParser(parsers.Parser):
 
     def visit_img(self, node):
         image = nodes.image()
-        image['uri'] = node.attrib.pop('src', '')
-        alt = node.attrib.pop('alt', '')
+        image["uri"] = node.attrib.pop("src", "")
+        alt = node.attrib.pop("alt", "")
         if alt:
             image += nodes.Text(alt)
         return image
@@ -413,13 +434,13 @@ class MarkdownParser(parsers.Parser):
     def visit_table(self, node):
         # docutils html writer crashes without tgroup/colspec
         table = nodes.table()
-        table['classes'] = ["colwidths-auto"]
+        table["classes"] = ["colwidths-auto"]
         self.append_node(table)
         tgroup = nodes.tgroup()
         maxrow = max(len(row.findall("td")) for row in node.findall("*/tr"))
         for _ in range(maxrow):
             tgroup += nodes.colspec()
-        tgroup['stub'] = None
+        tgroup["stub"] = None
         return tgroup
 
     def visit_thead(self, node):

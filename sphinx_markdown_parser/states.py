@@ -1,10 +1,19 @@
 """Implement statemachine and state that are needed to Generate Derivatives."""
 
-from docutils.statemachine import StateMachineWS
+# This module intentionally duck-types docutils internals: a dummy state
+# machine is passed where docutils expects an RSTStateMachine so directives
+# and roles can be run outside of an rst parse. The docutils type stubs
+# cannot express that, so the corresponding diagnostics are disabled here.
+# pyright: reportArgumentType=false, reportAttributeAccessIssue=false, reportCallIssue=false
+
+from __future__ import annotations
+
 from docutils.parsers.rst import languages
-from docutils.parsers.rst.states import Struct, RSTState, Inliner
-from docutils.parsers.rst.roles import role
 from docutils.parsers.rst.directives import directive
+from docutils.parsers.rst.roles import role
+from docutils.parsers.rst.states import Inliner, RSTState, Struct
+from docutils.statemachine import StateMachineWS
+
 
 class DummyStateMachine(StateMachineWS):
     """A dummy state machine that mimicks the property of statemachine.
@@ -14,6 +23,7 @@ class DummyStateMachine(StateMachineWS):
     - Call `reset` to reset the state
     - Then call `run_directive` or `run_role` to generate the node.
     """
+
     def __init__(self):
         self.memo = Struct(title_styles=[], inliner=None)
         self.state = RSTState(self)
@@ -54,7 +64,7 @@ class DummyStateMachine(StateMachineWS):
         self.reporter = self.memo.reporter
         self.node = parent
         self.state.runtime_init()
-        self.input_lines = document['source']
+        self.input_lines = document["source"]
 
     def run_directive(self, name, arguments=None, options=None, content=None):
         """Generate directive node given arguments.
@@ -82,6 +92,7 @@ class DummyStateMachine(StateMachineWS):
         if arguments is None:
             arguments = []
         direc, _ = directive(name, self.language, self.document)
+        assert direc is not None, "unknown directive: %s" % name
         direc = direc(
             name=name,
             arguments=arguments,
@@ -89,9 +100,9 @@ class DummyStateMachine(StateMachineWS):
             content=content,
             lineno=self.node.line,
             content_offset=0,
-            block_text='Dummy BlockText',
+            block_text="Dummy BlockText",
             state=self.state,
-            state_machine=self
+            state_machine=self,
         )
         return direc.run()
 
@@ -113,6 +124,7 @@ class DummyStateMachine(StateMachineWS):
         if content is None:
             content = []
         role_fn, _ = role(name, self.language, self.node.line, self.reporter)
+        assert role_fn is not None, "unknown role: %s" % name
         vec, _ = role_fn(
             name,
             rawtext=str(content),
@@ -120,13 +132,13 @@ class DummyStateMachine(StateMachineWS):
             lineno=self.node.line,
             inliner=self.memo.inliner,
             options=options,
-            content=content
+            content=content,
         )
-        assert len(vec) == 1, 'only support one list in role'
+        assert len(vec) == 1, "only support one list in role"
         return vec[0]
 
     def get_source_and_line(self, lineno=None):
         if lineno:
-            return (self.document['source'], lineno)
+            return (self.document["source"], lineno)
         else:
-            return (self.document['source'], self.node.line)
+            return (self.document["source"], self.node.line)
