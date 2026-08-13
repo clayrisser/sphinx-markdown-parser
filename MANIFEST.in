@@ -1,4 +1,0 @@
-include *.md
-include requirements.txt
-recursive-include docs *.md *.py Makefile
-graft tests

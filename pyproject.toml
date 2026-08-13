@@ -1,0 +1,70 @@
+[project]
+name = "sphinx-markdown-parser"
+version = "0.3.0"
+description = "A docutils-compatibility bridge to markdown, enabling you to write markdown inside of docutils & sphinx projects."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Clay Risser", email = "clayrisser@gmail.com" }]
+keywords = ["sphinx", "docs", "documentation", "markdown"]
+classifiers = [
+    "Framework :: Sphinx :: Extension",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Utilities",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "commonmark>=0.9.1",
+    "docutils>=0.19",
+    "markdown>=3.4",
+    "pyyaml>=6.0",
+    "sphinx>=7.0,<9",
+]
+
+[project.urls]
+Homepage = "https://gitlab.com/bitspur/misc/sphinx-markdown-parser"
+Repository = "https://gitlab.com/bitspur/misc/sphinx-markdown-parser"
+
+[project.scripts]
+md2html = "sphinx_markdown_parser.scripts:md2html"
+md2latex = "sphinx_markdown_parser.scripts:md2latex"
+md2man = "sphinx_markdown_parser.scripts:md2man"
+md2pseudoxml = "sphinx_markdown_parser.scripts:md2pseudoxml"
+md2xetex = "sphinx_markdown_parser.scripts:md2xetex"
+md2xml = "sphinx_markdown_parser.scripts:md2xml"
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.29.0",
+    "black>=25.1.0",
+    "pytest>=8.3.0",
+    "pytest-cov>=6.0.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.18,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
+module-name = "sphinx_markdown_parser"
+
+[tool.black]
+target-version = ["py310", "py311", "py312"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["sphinx_markdown_parser"]
+
+[tool.basedpyright]
+typeCheckingMode = "standard"
+pythonVersion = "3.10"
+include = ["sphinx_markdown_parser", "tests", "docs"]
+exclude = ["**/.venv", "**/_build", "**/__pycache__", "dist"]
